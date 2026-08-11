@@ -1,0 +1,13 @@
+package com.iotsecurity.event.model;
+
+public enum EventType {
+
+    FAILED_LOGIN,
+    UNAUTHORIZED_ACCESS,
+    DEVICE_OFFLINE,
+    UNUSUAL_TRAFFIC,
+    SENSITIVE_ACCESS,
+    DEVICE_REGISTERED,
+    HIGH_PRIORITY_ALERT,
+    SERVICE_FAILURE
+}
