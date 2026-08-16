@@ -4,16 +4,16 @@
 
 spring:
   application:
-    name: auth-service
+    name: event-service
 
   # =======================================================
   # DATABASE
   # =======================================================
 
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:auth_db}
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:postgres}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/event_db}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
 
   # =======================================================
@@ -23,77 +23,81 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
+
     show-sql: false
-    open-in-view: false
+
+    properties:
+      hibernate:
+        format_sql: true
+
+  # =======================================================
+  # REST CLIENT
+  # =======================================================
+
+  cloud:
+    discovery:
+      enabled: true
+
 
 # =========================================================
 # SERVER
 # =========================================================
 
 server:
-  port: 8083
+  port: 8082
+
 
 # =========================================================
-# JWT
-# =========================================================
-
-jwt:
-  # Development secret only.
-  # Must be at least 32 bytes.
-  # Replace through JWT_SECRET in production.
-  secret: ${JWT_SECRET:change-this-development-secret-key-1234567890}
-  expiration-ms: ${JWT_EXPIRATION_MS:3600000}
-
-# =========================================================
-# EUREKA
+# EUREKA CLIENT
 # =========================================================
 
 eureka:
+
   client:
     register-with-eureka: true
     fetch-registry: true
 
-    service-url:
-      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
-
-    # Allows Eureka to use the application's health status.
-    healthcheck:
-      enabled: true
+    serviceUrl:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
 
   instance:
     prefer-ip-address: true
 
-    health-check-url-path: /actuator/health
-
-    metadata-map:
-      service: auth-service
 
 # =========================================================
-# ACTUATOR
+# DEVICE SERVICE
+# =========================================================
+
+client:
+  device-service:
+    url: http://device-service
+
+
+# =========================================================
+# ACTUATOR / HEALTH CHECKS
 # =========================================================
 
 management:
+
   endpoints:
     web:
       exposure:
-        include:
-          - health
-          - info
+        include: health,info
 
   endpoint:
     health:
-      show-details: when-authorized
+      show-details: always
 
-  info:
-    env:
+  health:
+    defaults:
       enabled: true
 
+
 # =========================================================
-# APPLICATION INFORMATION
+# LOGGING
 # =========================================================
 
-info:
-  app:
-    name: Authentication Service
-    description: IoT Security Authentication Microservice
-    version: 0.0.1
+logging:
+  level:
+    com.iotsecurity.event: INFO
+    org.springframework.web: INFO

@@ -1,12 +1,17 @@
 package com.iotsecurity.auth.security;
 
+import com.iotsecurity.auth.entity.User;
+
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
+
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
@@ -14,56 +19,66 @@ import java.util.Date;
 public class JwtService {
 
     private final SecretKey secretKey;
-    private final long expiration;
+    private final long expirationMs;
 
     public JwtService(
             @Value("${jwt.secret}") String secret,
-            @Value("${jwt.expiration}") long expiration
+            @Value("${jwt.expiration-ms}") long expirationMs
     ) {
+        if (secret.getBytes(StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalArgumentException(
+                    "JWT secret must be at least 32 bytes long"
+            );
+        }
+
         this.secretKey = Keys.hmacShaKeyFor(
                 secret.getBytes(StandardCharsets.UTF_8)
         );
 
-        this.expiration = expiration;
+        this.expirationMs = expirationMs;
     }
 
-    public String generateToken(String username, String role) {
+    public String generateToken(User user) {
 
         Date now = new Date();
-        Date expiryDate =
-                new Date(now.getTime() + expiration);
+        Date expiration = new Date(
+                now.getTime() + expirationMs
+        );
 
         return Jwts.builder()
-                .subject(username)
-                .claim("role", role)
+                .subject(user.getUsername())
+                .claim("role", user.getRole())
                 .issuedAt(now)
-                .expiration(expiryDate)
+                .expiration(expiration)
                 .signWith(secretKey)
                 .compact();
     }
 
     public String extractUsername(String token) {
 
-        return getClaims(token).getSubject();
+        return extractAllClaims(token)
+                .getSubject();
     }
 
-    public String extractRole(String token) {
+    public boolean isTokenValid(
+            String token,
+            UserDetails userDetails
+    ) {
 
-        return getClaims(token)
-                .get("role", String.class);
+        String username = extractUsername(token);
+
+        return username.equals(userDetails.getUsername())
+                && !isTokenExpired(token);
     }
 
-    public boolean isTokenValid(String token) {
+    private boolean isTokenExpired(String token) {
 
-        try {
-            getClaims(token);
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
+        return extractAllClaims(token)
+                .getExpiration()
+                .before(new Date());
     }
 
-    private Claims getClaims(String token) {
+    private Claims extractAllClaims(String token) {
 
         return Jwts.parser()
                 .verifyWith(secretKey)

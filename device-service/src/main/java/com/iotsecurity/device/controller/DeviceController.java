@@ -1,8 +1,9 @@
 package com.iotsecurity.device.controller;
 
 import com.iotsecurity.device.model.Device;
-import com.iotsecurity.device.repository.DeviceRepository;
+import com.iotsecurity.device.service.DeviceService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,77 +13,88 @@ import java.util.List;
 @RequestMapping("/api/devices")
 public class DeviceController {
 
-    private final DeviceRepository deviceRepository;
+    private final DeviceService deviceService;
 
-    public DeviceController(DeviceRepository deviceRepository) {
-        this.deviceRepository = deviceRepository;
+    public DeviceController(DeviceService deviceService) {
+        this.deviceService = deviceService;
     }
 
-
-    // GET /api/devices
+    /**
+     * Get all devices.
+     *
+     * GET /api/devices
+     */
     @GetMapping
-    public List<Device> getAllDevices() {
-        return deviceRepository.findAll();
+    public ResponseEntity<List<Device>> getAllDevices() {
+
+        return ResponseEntity.ok(
+                deviceService.getAllDevices()
+        );
     }
 
+    /**
+     * Get a device by its deviceId.
+     *
+     * GET /api/devices/{deviceId}
+     */
+    @GetMapping("/{deviceId}")
+    public ResponseEntity<Device> getDevice(
+            @PathVariable String deviceId
+    ) {
 
-    // GET /api/devices/{id}
-    @GetMapping("/{id}")
-    public ResponseEntity<Device> getDeviceById(@PathVariable Long id) {
-
-        return deviceRepository.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+        return ResponseEntity.ok(
+                deviceService.getDeviceById(deviceId)
+        );
     }
 
-
-    // POST /api/devices
+    /**
+     * Register a new device.
+     *
+     * POST /api/devices
+     */
     @PostMapping
     public ResponseEntity<Device> createDevice(
-            @Valid @RequestBody Device device) {
+            @Valid @RequestBody Device device
+    ) {
 
-        Device savedDevice = deviceRepository.save(device);
+        Device createdDevice =
+                deviceService.createDevice(device);
 
-        return ResponseEntity.ok(savedDevice);
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(createdDevice);
     }
 
-
-    // PUT /api/devices/{id}
-    @PutMapping("/{id}")
+    /**
+     * Update an existing device.
+     *
+     * PUT /api/devices/{deviceId}
+     */
+    @PutMapping("/{deviceId}")
     public ResponseEntity<Device> updateDevice(
-            @PathVariable Long id,
-            @Valid @RequestBody Device device) {
+            @PathVariable String deviceId,
+            @Valid @RequestBody Device device
+    ) {
 
-        return deviceRepository.findById(id)
-                .map(existingDevice -> {
-
-                    existingDevice.setDeviceId(device.getDeviceId());
-                    existingDevice.setName(device.getName());
-                    existingDevice.setDeviceType(device.getDeviceType());
-                    existingDevice.setManufacturer(device.getManufacturer());
-                    existingDevice.setIpAddress(device.getIpAddress());
-                    existingDevice.setLocation(device.getLocation());
-                    existingDevice.setStatus(device.getStatus());
-
-                    Device updatedDevice =
-                            deviceRepository.save(existingDevice);
-
-                    return ResponseEntity.ok(updatedDevice);
-                })
-                .orElse(ResponseEntity.notFound().build());
+        return ResponseEntity.ok(
+                deviceService.updateDevice(
+                        deviceId,
+                        device
+                )
+        );
     }
 
-
-    // DELETE /api/devices/{id}
-    @DeleteMapping("/{id}")
+    /**
+     * Delete a device.
+     *
+     * DELETE /api/devices/{deviceId}
+     */
+    @DeleteMapping("/{deviceId}")
     public ResponseEntity<Void> deleteDevice(
-            @PathVariable Long id) {
+            @PathVariable String deviceId
+    ) {
 
-        if (!deviceRepository.existsById(id)) {
-            return ResponseEntity.notFound().build();
-        }
-
-        deviceRepository.deleteById(id);
+        deviceService.deleteDevice(deviceId);
 
         return ResponseEntity.noContent().build();
     }

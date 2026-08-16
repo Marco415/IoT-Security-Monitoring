@@ -1,9 +1,9 @@
 package com.iotsecurity.event.controller;
 
-import com.iotsecurity.event.model.EventType;
+import com.iotsecurity.event.dto.EventRequest;
 import com.iotsecurity.event.model.SecurityEvent;
-import com.iotsecurity.event.model.Severity;
 import com.iotsecurity.event.service.SecurityEventService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,71 +20,67 @@ public class SecurityEventController {
         this.eventService = eventService;
     }
 
+    @PostMapping
+    public ResponseEntity<SecurityEvent> createEvent(
+            @Valid @RequestBody EventRequest request) {
+
+        SecurityEvent event = eventService.createEvent(request);
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(event);
+    }
+
     @GetMapping
-    public ResponseEntity<List<SecurityEvent>> getEvents(
-            @RequestParam(required = false) Severity severity,
-            @RequestParam(required = false) EventType eventType,
-            @RequestParam(required = false) String deviceId) {
-
-        if (severity != null) {
-            return ResponseEntity.ok(
-                    eventService.getBySeverity(severity)
-            );
-        }
-
-        if (eventType != null) {
-            return ResponseEntity.ok(
-                    eventService.getByEventType(eventType)
-            );
-        }
-
-        if (deviceId != null) {
-            return ResponseEntity.ok(
-                    eventService.getByDeviceId(deviceId)
-            );
-        }
+    public ResponseEntity<List<SecurityEvent>> getAllEvents() {
 
         return ResponseEntity.ok(
                 eventService.getAllEvents()
         );
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/{eventId}")
     public ResponseEntity<SecurityEvent> getEvent(
-            @PathVariable Long id) {
+            @PathVariable String eventId) {
 
         return ResponseEntity.ok(
-                eventService.getEventById(id)
+                eventService.getEventByEventId(eventId)
         );
     }
 
-    @PostMapping
-    public ResponseEntity<SecurityEvent> createEvent(
-            @RequestBody SecurityEvent event) {
-
-        SecurityEvent created =
-                eventService.createEvent(event);
-
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(created);
-    }
-
-    @PutMapping("/{id}")
-    public ResponseEntity<SecurityEvent> updateEvent(
-            @PathVariable Long id,
-            @RequestBody SecurityEvent event) {
+    @GetMapping("/device/{deviceId}")
+    public ResponseEntity<List<SecurityEvent>> getEventsByDevice(
+            @PathVariable String deviceId) {
 
         return ResponseEntity.ok(
-                eventService.updateEvent(id, event)
+                eventService.getEventsByDeviceId(deviceId)
         );
     }
 
-    @DeleteMapping("/{id}")
+    @GetMapping("/status/{status}")
+    public ResponseEntity<List<SecurityEvent>> getEventsByStatus(
+            @PathVariable String status) {
+
+        return ResponseEntity.ok(
+                eventService.getEventsByStatus(status.toUpperCase())
+        );
+    }
+
+    @PatchMapping("/{eventId}/status")
+    public ResponseEntity<SecurityEvent> updateStatus(
+            @PathVariable String eventId,
+            @RequestParam String status) {
+
+        return ResponseEntity.ok(
+                eventService.updateStatus(eventId, status)
+        );
+    }
+
+    @DeleteMapping("/{eventId}")
     public ResponseEntity<Void> deleteEvent(
-            @PathVariable Long id) {
+            @PathVariable String eventId) {
 
-        eventService.deleteEvent(id);
+        eventService.deleteEvent(eventId);
 
         return ResponseEntity.noContent().build();
     }

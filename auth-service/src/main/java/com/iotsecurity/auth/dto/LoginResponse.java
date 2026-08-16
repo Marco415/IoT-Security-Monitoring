@@ -2,19 +2,29 @@ package com.iotsecurity.auth.dto;
 
 public class LoginResponse {
 
-    private String token;
-    private String type;
+    private final String token;
+    private final String username;
+    private final String role;
 
-    public LoginResponse(String token, String type) {
+    public LoginResponse(
+            String token,
+            String username,
+            String role
+    ) {
         this.token = token;
-        this.type = type;
+        this.username = username;
+        this.role = role;
     }
 
     public String getToken() {
         return token;
     }
 
-    public String getType() {
-        return type;
+    public String getUsername() {
+        return username;
+    }
+
+    public String getRole() {
+        return role;
     }
 }

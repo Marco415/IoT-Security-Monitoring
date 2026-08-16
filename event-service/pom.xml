@@ -11,8 +11,8 @@
 	<groupId>com.iotsecurity</groupId>
 	<artifactId>event-service</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name/>
-	<description/>
+	<name>event-service</name>
+	<description>IoT Security Monitoring Event Service</description>
 	<url/>
 	<licenses>
 		<license/>

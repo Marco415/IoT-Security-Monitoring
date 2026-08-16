@@ -11,8 +11,8 @@
 	<groupId>com.iotsecurity</groupId>
 	<artifactId>device-service</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name/>
-	<description/>
+	<name>device-service</name>
+	<description>IoT Security Monitoring Device Service</description>
 	<url/>
 	<licenses>
 		<license/>

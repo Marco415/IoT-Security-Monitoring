@@ -1,38 +1,122 @@
-server:
-  port: 8080
+# =========================================================
+# APPLICATION
+# =========================================================
 
 spring:
   application:
     name: api-gateway
 
+
+  # =======================================================
+  # SPRING CLOUD GATEWAY
+  # =======================================================
+
   cloud:
     gateway:
       server:
         webflux:
+
+          # -------------------------------------------------
+          # ROUTES
+          # -------------------------------------------------
+
           routes:
+
+            # =================================================
+            # DEVICE SERVICE
+            # =================================================
 
             - id: device-service
               uri: lb://device-service
               predicates:
                 - Path=/api/devices/**
 
+
+            # =================================================
+            # EVENT SERVICE
+            # =================================================
+
             - id: event-service
               uri: lb://event-service
               predicates:
                 - Path=/api/events/**
+
+
+            # =================================================
+            # AUTH SERVICE
+            # =================================================
 
             - id: auth-service
               uri: lb://auth-service
               predicates:
                 - Path=/api/auth/**
 
+
+# =========================================================
+# SERVER
+# =========================================================
+
+server:
+  port: 8080
+
+
+# =========================================================
+# EUREKA CLIENT
+# =========================================================
+
 eureka:
   client:
+
+    # Eureka server location
     service-url:
       defaultZone: http://localhost:8761/eureka/
+
+    # Register the gateway with Eureka
+    register-with-eureka: true
+
+    # Retrieve the list of registered services
+    fetch-registry: true
+
+    # How often to retrieve the Eureka registry
+    registry-fetch-interval-seconds: 5
+
+  instance:
+
+    # Prefer the machine IP when advertising the gateway
+    prefer-ip-address: true
+
+
+# =========================================================
+# ACTUATOR
+# =========================================================
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include:
+          - health
+          - info
+          - gateway
+
+  endpoint:
+    health:
+      show-details: always
+
+
+# =========================================================
+# LOGGING
+# =========================================================
+
+logging:
+  level:
+    root: INFO
+
+    # Gateway logging
+    org.springframework.cloud.gateway: INFO
+
+    # Eureka logging
+    com.netflix.discovery: INFO
+
+    # Load balancer logging
+    org.springframework.cloud.loadbalancer: INFO

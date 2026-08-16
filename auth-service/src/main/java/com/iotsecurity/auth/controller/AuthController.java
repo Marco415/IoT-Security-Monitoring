@@ -13,7 +13,13 @@ import jakarta.validation.Valid;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -22,21 +28,24 @@ import java.time.LocalDateTime;
 @RequestMapping("/api/auth")
 public class AuthController {
 
+    private final AuthenticationManager authenticationManager;
     private final UserRepository userRepository;
     private final AuthEventRepository authEventRepository;
-    private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final PasswordEncoder passwordEncoder;
 
     public AuthController(
+            AuthenticationManager authenticationManager,
             UserRepository userRepository,
             AuthEventRepository authEventRepository,
-            PasswordEncoder passwordEncoder,
-            JwtService jwtService
+            JwtService jwtService,
+            PasswordEncoder passwordEncoder
     ) {
+        this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
         this.authEventRepository = authEventRepository;
-        this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @PostMapping("/login")
@@ -45,18 +54,43 @@ public class AuthController {
             HttpServletRequest httpRequest
     ) {
 
-        String username = request.getUsername();
-
+        String username = request.getUsername().trim();
         String sourceIp = getClientIp(httpRequest);
 
-        User user = userRepository
-                .findByUsername(username)
-                .orElse(null);
+        try {
 
-        if (user == null) {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            username,
+                            request.getPassword()
+                    )
+            );
 
-            recordAuthenticationEvent(
-                    "AUTHENTICATION_FAILURE",
+            User user = userRepository
+                    .findByUsername(username)
+                    .orElseThrow();
+
+            String token = jwtService.generateToken(user);
+
+            saveAuthEvent(
+                    "LOGIN",
+                    username,
+                    sourceIp,
+                    "SUCCESS"
+            );
+
+            return ResponseEntity.ok(
+                    new LoginResponse(
+                            token,
+                            user.getUsername(),
+                            user.getRole()
+                    )
+            );
+
+        } catch (AuthenticationException ex) {
+
+            saveAuthEvent(
+                    "LOGIN",
                     username,
                     sourceIp,
                     "FAILURE"
@@ -66,56 +100,78 @@ public class AuthController {
                     .status(HttpStatus.UNAUTHORIZED)
                     .body("Invalid username or password");
         }
+    }
 
-        if (!user.isEnabled()) {
+    @PostMapping("/register")
+    public ResponseEntity<?> register(
+            @Valid @RequestBody LoginRequest request,
+            HttpServletRequest httpRequest
+    ) {
 
-            recordAuthenticationEvent(
-                    "AUTHENTICATION_FAILURE",
-                    username,
-                    sourceIp,
-                    "ACCOUNT_DISABLED"
-            );
+        String username = request.getUsername().trim();
+        String sourceIp = getClientIp(httpRequest);
 
-            return ResponseEntity
-                    .status(HttpStatus.UNAUTHORIZED)
-                    .body("Account is disabled");
-        }
+        if (userRepository.existsByUsername(username)) {
 
-        if (!passwordEncoder.matches(
-                request.getPassword(),
-                user.getPassword()
-        )) {
-
-            recordAuthenticationEvent(
-                    "AUTHENTICATION_FAILURE",
+            saveAuthEvent(
+                    "REGISTER",
                     username,
                     sourceIp,
                     "FAILURE"
             );
 
             return ResponseEntity
-                    .status(HttpStatus.UNAUTHORIZED)
-                    .body("Invalid username or password");
+                    .status(HttpStatus.CONFLICT)
+                    .body("Username already exists");
         }
 
-        String token = jwtService.generateToken(
-                user.getUsername(),
-                user.getRole()
+        User user = new User(
+                username,
+                passwordEncoder.encode(request.getPassword()),
+                "USER",
+                true
         );
 
-        recordAuthenticationEvent(
-                "AUTHENTICATION_SUCCESS",
+        userRepository.save(user);
+
+        saveAuthEvent(
+                "REGISTER",
                 username,
                 sourceIp,
                 "SUCCESS"
         );
 
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body("User registered successfully");
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<?> currentUser() {
+
+        Object principal =
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication()
+                        .getPrincipal();
+
+        if (!(principal instanceof User user)) {
+
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .body("Not authenticated");
+        }
+
         return ResponseEntity.ok(
-                new LoginResponse(token, "Bearer")
+                new LoginResponse(
+                        "",
+                        user.getUsername(),
+                        user.getRole()
+                )
         );
     }
 
-    private void recordAuthenticationEvent(
+    private void saveAuthEvent(
             String eventType,
             String username,
             String sourceIp,
@@ -132,14 +188,6 @@ public class AuthController {
         );
 
         authEventRepository.save(event);
-
-        System.out.println(
-                eventType +
-                        " username=" + username +
-                        " sourceIp=" + sourceIp +
-                        " timestamp=" + event.getTimestamp() +
-                        " result=" + result
-        );
     }
 
     private String getClientIp(HttpServletRequest request) {
@@ -147,19 +195,10 @@ public class AuthController {
         String forwardedFor =
                 request.getHeader("X-Forwarded-For");
 
-        if (forwardedFor != null &&
-                !forwardedFor.isBlank()) {
+        if (forwardedFor != null
+                && !forwardedFor.isBlank()) {
 
             return forwardedFor.split(",")[0].trim();
-        }
-
-        String realIp =
-                request.getHeader("X-Real-IP");
-
-        if (realIp != null &&
-                !realIp.isBlank()) {
-
-            return realIp;
         }
 
         return request.getRemoteAddr();

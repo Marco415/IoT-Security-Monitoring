@@ -1,24 +1,35 @@
-server:
-  port: 8081
-
 spring:
   application:
     name: device-service
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/device_db
-    username: postgres
-    password: postgres
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:device_db}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
       ddl-auto: update
     show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+server:
+  port: ${SERVER_PORT:8081}
 
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+    register-with-eureka: true
+    fetch-registry: true
+
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${server.port}
 
 management:
   endpoints:
@@ -29,3 +40,9 @@ management:
   endpoint:
     health:
       show-details: always
+
+info:
+  app:
+    name: Device Service
+    description: IoT Security Monitoring Device Service
+    version: 0.0.1

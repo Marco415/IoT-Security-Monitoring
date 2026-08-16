@@ -1,0 +1,76 @@
+# =========================================================
+# APPLICATION
+# =========================================================
+
+spring:
+  application:
+    name: eureka-server
+
+
+# =========================================================
+# SERVER
+# =========================================================
+
+server:
+  port: ${SERVER_PORT:8761}
+
+
+# =========================================================
+# EUREKA SERVER
+# =========================================================
+
+eureka:
+  client:
+
+    # The Eureka Server does not register itself as a client.
+    register-with-eureka: false
+
+    # The Eureka Server does not need to fetch a registry.
+    fetch-registry: false
+
+    # Address that Eureka clients use to communicate with this server.
+    service-url:
+      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://localhost:8761/eureka/}
+
+
+  # =======================================================
+  # EUREKA INSTANCE
+  # =======================================================
+
+  instance:
+    hostname: ${EUREKA_INSTANCE_HOSTNAME:localhost}
+
+
+  # =======================================================
+  # EUREKA SERVER SETTINGS
+  # =======================================================
+
+  server:
+    enable-self-preservation: true
+    eviction-interval-timer-in-ms: 10000
+
+
+# =========================================================
+# ACTUATOR
+# =========================================================
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+  endpoint:
+    health:
+      show-details: when-authorized
+
+
+# =========================================================
+# APPLICATION INFORMATION
+# =========================================================
+
+info:
+  app:
+    name: IoT Security Monitoring - Eureka Server
+    description: Service discovery server for the IoT Security Monitoring System
+    version: 0.0.1

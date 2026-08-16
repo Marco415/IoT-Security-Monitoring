@@ -11,8 +11,8 @@
 	<groupId>com.iotsecurity</groupId>
 	<artifactId>gateway</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name/>
-	<description/>
+	<name>gateway</name>
+	<description>API Gateway for IoT Security Monitoring System</description>
 	<url/>
 	<licenses>
 		<license/>

@@ -1,0 +1,234 @@
+services:
+
+  # ==========================================================
+  # DEVICE DATABASE
+  # ==========================================================
+
+  device-db:
+    image: postgres:18
+    container_name: device-db
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: device_db
+      POSTGRES_USER: device_user
+      POSTGRES_PASSWORD: device_password
+
+    ports:
+      - "5433:5432"
+
+    volumes:
+      - device-db-data:/var/lib/postgresql/data
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U device_user -d device_db"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  # ==========================================================
+  # EVENT DATABASE
+  # ==========================================================
+
+  event-db:
+    image: postgres:18
+    container_name: event-db
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: event_db
+      POSTGRES_USER: event_user
+      POSTGRES_PASSWORD: event_password
+
+    ports:
+      - "5434:5432"
+
+    volumes:
+      - event-db-data:/var/lib/postgresql/data
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U event_user -d event_db"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  # ==========================================================
+  # AUTH DATABASE
+  # ==========================================================
+
+  auth-db:
+    image: postgres:18
+    container_name: auth-db
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: auth_user
+      POSTGRES_PASSWORD: auth_password
+
+    ports:
+      - "5435:5432"
+
+    volumes:
+      - auth-db-data:/var/lib/postgresql/data
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U auth_user -d auth_db"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  # ==========================================================
+  # DEVICE SERVICE
+  # ==========================================================
+
+  device-service:
+    build:
+      context: ./device-service
+
+    container_name: device-service
+
+    restart: unless-stopped
+
+    ports:
+      - "8081:8081"
+
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://device-db:5432/device_db
+      SPRING_DATASOURCE_USERNAME: device_user
+      SPRING_DATASOURCE_PASSWORD: device_password
+
+    depends_on:
+      device-db:
+        condition: service_healthy
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8081/actuator/health"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+
+  # ==========================================================
+  # EVENT SERVICE
+  # ==========================================================
+
+  event-service:
+    build:
+      context: ./event-service
+
+    container_name: event-service
+
+    restart: unless-stopped
+
+    ports:
+      - "8082:8082"
+
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://event-db:5432/event_db
+      SPRING_DATASOURCE_USERNAME: event_user
+      SPRING_DATASOURCE_PASSWORD: event_password
+
+      DEVICE_SERVICE_URL: http://device-service:8081
+
+    depends_on:
+      event-db:
+        condition: service_healthy
+
+      device-service:
+        condition: service_healthy
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8082/actuator/health"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+
+  # ==========================================================
+  # AUTH SERVICE
+  # ==========================================================
+
+  auth-service:
+    build:
+      context: ./auth-service
+
+    container_name: auth-service
+
+    restart: unless-stopped
+
+    ports:
+      - "8083:8083"
+
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://auth-db:5432/auth_db
+      SPRING_DATASOURCE_USERNAME: auth_user
+      SPRING_DATASOURCE_PASSWORD: auth_password
+
+    depends_on:
+      auth-db:
+        condition: service_healthy
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8083/actuator/health"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+
+# ============================================================
+# VOLUMES
+# ============================================================
+
+volumes:
+
+  device-db-data:
+    name: iot-device-db-data
+
+  event-db-data:
+    name: iot-event-db-data
+
+  auth-db-data:
+    name: iot-auth-db-data

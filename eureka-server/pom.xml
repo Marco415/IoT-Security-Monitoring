@@ -11,8 +11,8 @@
 	<groupId>com.iotsecurity</groupId>
 	<artifactId>eureka-server</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name/>
-	<description/>
+	<name>eureka-server</name>
+	<description>Eureka Service Discovery Server for the IoT Security Monitoring System</description>
 	<url/>
 	<licenses>
 		<license/>
