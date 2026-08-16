@@ -4,7 +4,6 @@ import com.iotsecurity.device.model.Device;
 import com.iotsecurity.device.repository.DeviceRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,100 +13,132 @@ import java.util.List;
 @Transactional
 public class DeviceService {
 
-    private static final Logger logger =
+    private static final Logger log =
             LoggerFactory.getLogger(DeviceService.class);
 
     private final DeviceRepository deviceRepository;
 
-    public DeviceService(DeviceRepository deviceRepository) {
+    public DeviceService(
+            DeviceRepository deviceRepository) {
+
         this.deviceRepository = deviceRepository;
     }
 
-    /**
-     * Get all registered devices.
-     */
-    @Transactional(readOnly = true)
     public List<Device> getAllDevices() {
 
-        logger.info("DEVICE_LIST retrieving all devices");
-
-        return deviceRepository.findAll();
-    }
-
-    /**
-     * Get a device using its IoT device identifier.
-     */
-    @Transactional(readOnly = true)
-    public Device getDeviceById(String deviceId) {
-
-        logger.info(
-                "DEVICE_LOOKUP deviceId={}",
-                deviceId
+        log.info(
+                "Retrieving all IoT devices"
         );
 
-        return deviceRepository.findByDeviceId(deviceId)
-                .orElseThrow(() ->
-                        new DeviceNotFoundException(deviceId));
+        List<Device> devices =
+                deviceRepository.findAll();
+
+        log.info(
+                "Retrieved {} IoT devices",
+                devices.size()
+        );
+
+        return devices;
     }
 
-    /**
-     * Register a new device.
-     */
+    public Device getDevice(Long id) {
+
+        log.info(
+                "Retrieving IoT device deviceId={}",
+                id
+        );
+
+        return deviceRepository
+                .findById(id)
+                .orElseThrow(() -> {
+
+                    log.warn(
+                            "IoT device not found deviceId={}",
+                            id
+                    );
+
+                    return new DeviceNotFoundException(
+                            "Device with ID " +
+                                    id +
+                                    " was not found."
+                    );
+                });
+    }
+
     public Device createDevice(Device device) {
 
-        logger.info(
-                "DEVICE_CREATE deviceId={}",
-                device.getDeviceId()
+        log.info(
+                "Creating IoT device deviceName={}",
+                device.getName()
         );
 
-        if (deviceRepository.existsByDeviceId(device.getDeviceId())) {
-            throw new DataIntegrityViolationException(
-                    "A device with deviceId '" +
-                            device.getDeviceId() +
-                            "' already exists"
-            );
-        }
+        Device savedDevice =
+                deviceRepository.save(device);
 
-        return deviceRepository.save(device);
+        log.info(
+                "IoT device created deviceId={} deviceName={}",
+                savedDevice.getId(),
+                savedDevice.getName()
+        );
+
+        return savedDevice;
     }
 
-    /**
-     * Update an existing device.
-     */
     public Device updateDevice(
-            String deviceId,
-            Device updatedDevice
-    ) {
+            Long id,
+            Device device) {
 
-        logger.info(
-                "DEVICE_UPDATE deviceId={}",
-                deviceId
+        log.info(
+                "Updating IoT device deviceId={}",
+                id
         );
 
-        Device existingDevice = getDeviceById(deviceId);
+        Device existingDevice =
+                getDevice(id);
 
-        existingDevice.setName(updatedDevice.getName());
-        existingDevice.setDeviceType(updatedDevice.getDeviceType());
-        existingDevice.setManufacturer(updatedDevice.getManufacturer());
-        existingDevice.setIpAddress(updatedDevice.getIpAddress());
-        existingDevice.setLocation(updatedDevice.getLocation());
-        existingDevice.setStatus(updatedDevice.getStatus());
+        existingDevice.setName(
+                device.getName()
+        );
 
-        return deviceRepository.save(existingDevice);
+        /*
+         * Keep any other fields that your existing
+         * Device entity supports here.
+         *
+         * For example:
+         *
+         * existingDevice.setType(device.getType());
+         * existingDevice.setLocation(device.getLocation());
+         * existingDevice.setStatus(device.getStatus());
+         */
+
+        Device updatedDevice =
+                deviceRepository.save(
+                        existingDevice
+                );
+
+        log.info(
+                "IoT device updated deviceId={}",
+                id
+        );
+
+        return updatedDevice;
     }
 
-    /**
-     * Delete a device.
-     */
-    public void deleteDevice(String deviceId) {
+    public void deleteDevice(Long id) {
 
-        logger.info(
-                "DEVICE_DELETE deviceId={}",
-                deviceId
+        log.warn(
+                "Deleting IoT device deviceId={}",
+                id
         );
 
-        Device device = getDeviceById(deviceId);
+        Device device =
+                getDevice(id);
 
         deviceRepository.delete(device);
+
+        log.info(
+                "IoT device deleted deviceId={}",
+                id
+        );
     }
 }

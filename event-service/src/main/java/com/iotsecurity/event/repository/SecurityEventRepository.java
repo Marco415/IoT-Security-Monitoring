@@ -11,7 +11,7 @@ public interface SecurityEventRepository
 
     Optional<SecurityEvent> findByEventId(String eventId);
 
-    List<SecurityEvent> findByDeviceId(String deviceId);
+    List<SecurityEvent> findByDeviceId(Long deviceId);
 
     List<SecurityEvent> findByStatus(String status);
 }

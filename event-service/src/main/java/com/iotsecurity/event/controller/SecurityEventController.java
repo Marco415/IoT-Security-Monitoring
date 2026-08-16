@@ -4,6 +4,8 @@ import com.iotsecurity.event.dto.EventRequest;
 import com.iotsecurity.event.model.SecurityEvent;
 import com.iotsecurity.event.service.SecurityEventService;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,9 +16,16 @@ import java.util.List;
 @RequestMapping("/api/events")
 public class SecurityEventController {
 
+    private static final Logger log =
+            LoggerFactory.getLogger(
+                    SecurityEventController.class
+            );
+
     private final SecurityEventService eventService;
 
-    public SecurityEventController(SecurityEventService eventService) {
+    public SecurityEventController(
+            SecurityEventService eventService) {
+
         this.eventService = eventService;
     }
 
@@ -24,7 +33,20 @@ public class SecurityEventController {
     public ResponseEntity<SecurityEvent> createEvent(
             @Valid @RequestBody EventRequest request) {
 
-        SecurityEvent event = eventService.createEvent(request);
+        log.info(
+                "Received security event request deviceId={} eventType={} severity={}",
+                request.deviceId(),
+                request.eventType(),
+                request.severity()
+        );
+
+        SecurityEvent event =
+                eventService.createEvent(request);
+
+        log.info(
+                "Security event request completed eventId={}",
+                event.getEventId()
+        );
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
@@ -33,6 +55,10 @@ public class SecurityEventController {
 
     @GetMapping
     public ResponseEntity<List<SecurityEvent>> getAllEvents() {
+
+        log.info(
+                "Received request to retrieve all security events"
+        );
 
         return ResponseEntity.ok(
                 eventService.getAllEvents()
@@ -43,14 +69,25 @@ public class SecurityEventController {
     public ResponseEntity<SecurityEvent> getEvent(
             @PathVariable String eventId) {
 
+        log.info(
+                "Received request to retrieve security event eventId={}",
+                eventId
+        );
+
         return ResponseEntity.ok(
                 eventService.getEventByEventId(eventId)
         );
     }
 
     @GetMapping("/device/{deviceId}")
-    public ResponseEntity<List<SecurityEvent>> getEventsByDevice(
-            @PathVariable String deviceId) {
+    public ResponseEntity<List<SecurityEvent>>
+    getEventsByDevice(
+            @PathVariable Long deviceId) {
+
+        log.info(
+                "Received request to retrieve security events deviceId={}",
+                deviceId
+        );
 
         return ResponseEntity.ok(
                 eventService.getEventsByDeviceId(deviceId)
@@ -58,11 +95,17 @@ public class SecurityEventController {
     }
 
     @GetMapping("/status/{status}")
-    public ResponseEntity<List<SecurityEvent>> getEventsByStatus(
+    public ResponseEntity<List<SecurityEvent>>
+    getEventsByStatus(
             @PathVariable String status) {
 
+        log.info(
+                "Received request to retrieve security events status={}",
+                status
+        );
+
         return ResponseEntity.ok(
-                eventService.getEventsByStatus(status.toUpperCase())
+                eventService.getEventsByStatus(status)
         );
     }
 
@@ -71,14 +114,28 @@ public class SecurityEventController {
             @PathVariable String eventId,
             @RequestParam String status) {
 
+        log.info(
+                "Received request to update event status eventId={} status={}",
+                eventId,
+                status
+        );
+
         return ResponseEntity.ok(
-                eventService.updateStatus(eventId, status)
+                eventService.updateStatus(
+                        eventId,
+                        status
+                )
         );
     }
 
     @DeleteMapping("/{eventId}")
     public ResponseEntity<Void> deleteEvent(
             @PathVariable String eventId) {
+
+        log.warn(
+                "Received request to delete security event eventId={}",
+                eventId
+        );
 
         eventService.deleteEvent(eventId);
 

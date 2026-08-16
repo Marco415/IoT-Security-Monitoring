@@ -98,10 +98,43 @@ management:
           - health
           - info
           - gateway
+          - metrics
 
   endpoint:
     health:
       show-details: always
+
+  health:
+    circuitbreakers:
+      enabled: true
+
+# =========================================================
+# Circuit breaker
+# =========================================================
+
+resilience4j:
+  circuitbreaker:
+    instances:
+
+      eventServiceCircuitBreaker:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+
+      deviceServiceCircuitBreaker:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
 
 
 # =========================================================
@@ -109,9 +142,16 @@ management:
 # =========================================================
 
 logging:
+  file:
+    name: ${LOGGING_FILE_NAME:/logs/gateway.log}
+
+  structured:
+    format:
+      file: logstash
+
   level:
     root: INFO
-
+    com.iotsecurity: INFO
     # Gateway logging
     org.springframework.cloud.gateway: INFO
 

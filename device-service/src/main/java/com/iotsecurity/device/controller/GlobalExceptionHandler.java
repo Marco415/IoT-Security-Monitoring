@@ -1,6 +1,9 @@
 package com.iotsecurity.device.controller;
 
 import com.iotsecurity.device.service.DeviceNotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,17 +18,55 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private static final Logger log =
+            LoggerFactory.getLogger(
+                    GlobalExceptionHandler.class
+            );
+
+    private static final String CORRELATION_ID =
+            "X-Correlation-ID";
+
     @ExceptionHandler(DeviceNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleDeviceNotFound(
             DeviceNotFoundException exception
     ) {
 
-        Map<String, Object> response = new HashMap<>();
+        String correlationId =
+                MDC.get(CORRELATION_ID);
 
-        response.put("timestamp", LocalDateTime.now());
-        response.put("status", HttpStatus.NOT_FOUND.value());
-        response.put("error", "Device Not Found");
-        response.put("message", exception.getMessage());
+        log.warn(
+                "Device not found correlationId={} message={}",
+                correlationId,
+                exception.getMessage()
+        );
+
+        Map<String, Object> response =
+                new HashMap<>();
+
+        response.put(
+                "timestamp",
+                LocalDateTime.now()
+        );
+
+        response.put(
+                "status",
+                HttpStatus.NOT_FOUND.value()
+        );
+
+        response.put(
+                "error",
+                "Device Not Found"
+        );
+
+        response.put(
+                "message",
+                exception.getMessage()
+        );
+
+        response.put(
+                "correlationId",
+                correlationId
+        );
 
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
@@ -33,16 +74,48 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
-    public ResponseEntity<Map<String, Object>> handleDataIntegrityViolation(
+    public ResponseEntity<Map<String, Object>>
+    handleDataIntegrityViolation(
             DataIntegrityViolationException exception
     ) {
 
-        Map<String, Object> response = new HashMap<>();
+        String correlationId =
+                MDC.get(CORRELATION_ID);
 
-        response.put("timestamp", LocalDateTime.now());
-        response.put("status", HttpStatus.CONFLICT.value());
-        response.put("error", "Data Conflict");
-        response.put("message", exception.getMessage());
+        log.error(
+                "Database integrity violation in device service correlationId={} message={}",
+                correlationId,
+                exception.getMessage(),
+                exception
+        );
+
+        Map<String, Object> response =
+                new HashMap<>();
+
+        response.put(
+                "timestamp",
+                LocalDateTime.now()
+        );
+
+        response.put(
+                "status",
+                HttpStatus.CONFLICT.value()
+        );
+
+        response.put(
+                "error",
+                "Data Conflict"
+        );
+
+        response.put(
+                "message",
+                "The requested operation conflicts with existing device data."
+        );
+
+        response.put(
+                "correlationId",
+                correlationId
+        );
 
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
@@ -50,11 +123,16 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, Object>> handleValidation(
+    public ResponseEntity<Map<String, Object>>
+    handleValidation(
             MethodArgumentNotValidException exception
     ) {
 
-        Map<String, String> validationErrors = new HashMap<>();
+        String correlationId =
+                MDC.get(CORRELATION_ID);
+
+        Map<String, String> validationErrors =
+                new HashMap<>();
 
         exception.getBindingResult()
                 .getFieldErrors()
@@ -65,12 +143,39 @@ public class GlobalExceptionHandler {
                         )
                 );
 
-        Map<String, Object> response = new HashMap<>();
+        log.warn(
+                "Device request validation failed correlationId={} validationErrors={}",
+                correlationId,
+                validationErrors
+        );
 
-        response.put("timestamp", LocalDateTime.now());
-        response.put("status", HttpStatus.BAD_REQUEST.value());
-        response.put("error", "Validation Failed");
-        response.put("validationErrors", validationErrors);
+        Map<String, Object> response =
+                new HashMap<>();
+
+        response.put(
+                "timestamp",
+                LocalDateTime.now()
+        );
+
+        response.put(
+                "status",
+                HttpStatus.BAD_REQUEST.value()
+        );
+
+        response.put(
+                "error",
+                "Validation Failed"
+        );
+
+        response.put(
+                "validationErrors",
+                validationErrors
+        );
+
+        response.put(
+                "correlationId",
+                correlationId
+        );
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
@@ -78,16 +183,47 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, Object>> handleGeneralException(
+    public ResponseEntity<Map<String, Object>>
+    handleGeneralException(
             Exception exception
     ) {
 
-        Map<String, Object> response = new HashMap<>();
+        String correlationId =
+                MDC.get(CORRELATION_ID);
 
-        response.put("timestamp", LocalDateTime.now());
-        response.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
-        response.put("error", "Internal Server Error");
-        response.put("message", exception.getMessage());
+        log.error(
+                "Unhandled exception in device service correlationId={}",
+                correlationId,
+                exception
+        );
+
+        Map<String, Object> response =
+                new HashMap<>();
+
+        response.put(
+                "timestamp",
+                LocalDateTime.now()
+        );
+
+        response.put(
+                "status",
+                HttpStatus.INTERNAL_SERVER_ERROR.value()
+        );
+
+        response.put(
+                "error",
+                "Internal Server Error"
+        );
+
+        response.put(
+                "message",
+                "An unexpected error occurred."
+        );
+
+        response.put(
+                "correlationId",
+                correlationId
+        );
 
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)

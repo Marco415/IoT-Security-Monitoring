@@ -3,6 +3,8 @@ package com.iotsecurity.device.controller;
 import com.iotsecurity.device.model.Device;
 import com.iotsecurity.device.service.DeviceService;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -13,89 +15,112 @@ import java.util.List;
 @RequestMapping("/api/devices")
 public class DeviceController {
 
+    private static final Logger log =
+            LoggerFactory.getLogger(
+                    DeviceController.class
+            );
+
     private final DeviceService deviceService;
 
-    public DeviceController(DeviceService deviceService) {
+    public DeviceController(
+            DeviceService deviceService) {
+
         this.deviceService = deviceService;
     }
 
-    /**
-     * Get all devices.
-     *
-     * GET /api/devices
-     */
     @GetMapping
     public ResponseEntity<List<Device>> getAllDevices() {
+
+        log.info(
+                "Retrieving all IoT devices"
+        );
 
         return ResponseEntity.ok(
                 deviceService.getAllDevices()
         );
     }
 
-    /**
-     * Get a device by its deviceId.
-     *
-     * GET /api/devices/{deviceId}
-     */
-    @GetMapping("/{deviceId}")
+    @GetMapping("/{id}")
     public ResponseEntity<Device> getDevice(
-            @PathVariable String deviceId
-    ) {
+            @PathVariable Long id) {
+
+        log.info(
+                "Retrieving IoT device deviceId={}",
+                id
+        );
 
         return ResponseEntity.ok(
-                deviceService.getDeviceById(deviceId)
+                deviceService.getDevice(id)
         );
     }
 
-    /**
-     * Register a new device.
-     *
-     * POST /api/devices
-     */
     @PostMapping
     public ResponseEntity<Device> createDevice(
-            @Valid @RequestBody Device device
-    ) {
+            @Valid @RequestBody Device device) {
+
+        log.info(
+                "Creating IoT device deviceName={}",
+                device.getName()
+        );
 
         Device createdDevice =
                 deviceService.createDevice(device);
+
+        log.info(
+                "IoT device created deviceId={} deviceName={}",
+                createdDevice.getId(),
+                createdDevice.getName()
+        );
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(createdDevice);
     }
 
-    /**
-     * Update an existing device.
-     *
-     * PUT /api/devices/{deviceId}
-     */
-    @PutMapping("/{deviceId}")
+    @PutMapping("/{id}")
     public ResponseEntity<Device> updateDevice(
-            @PathVariable String deviceId,
-            @Valid @RequestBody Device device
-    ) {
+            @PathVariable Long id,
+            @Valid @RequestBody Device device) {
+
+        log.info(
+                "Updating IoT device deviceId={}",
+                id
+        );
+
+        Device updatedDevice =
+                deviceService.updateDevice(
+                        id,
+                        device
+                );
+
+        log.info(
+                "IoT device updated deviceId={}",
+                id
+        );
 
         return ResponseEntity.ok(
-                deviceService.updateDevice(
-                        deviceId,
-                        device
-                )
+                updatedDevice
         );
     }
 
-    /**
-     * Delete a device.
-     *
-     * DELETE /api/devices/{deviceId}
-     */
-    @DeleteMapping("/{deviceId}")
+    @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteDevice(
-            @PathVariable String deviceId
-    ) {
+            @PathVariable Long id) {
 
-        deviceService.deleteDevice(deviceId);
+        log.warn(
+                "Deleting IoT device deviceId={}",
+                id
+        );
 
-        return ResponseEntity.noContent().build();
+        deviceService.deleteDevice(id);
+
+        log.info(
+                "IoT device deleted deviceId={}",
+                id
+        );
+
+        return ResponseEntity
+                .noContent()
+                .build();
     }
 }

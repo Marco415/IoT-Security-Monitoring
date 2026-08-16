@@ -1,6 +1,9 @@
 package com.iotsecurity.event.exception;
 
 import com.iotsecurity.event.client.DeviceServiceUnavailableException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -14,31 +17,86 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private static final Logger log =
+            LoggerFactory.getLogger(
+                    GlobalExceptionHandler.class
+            );
+
+    private static final String CORRELATION_ID =
+            "X-Correlation-ID";
+
+    /**
+     * Handles IllegalArgumentException.
+     *
+     * These are generally client/request-related errors,
+     * such as requesting an event that does not exist.
+     */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalArgument(
             IllegalArgumentException exception) {
 
+        String correlationId =
+                MDC.get(CORRELATION_ID);
+
+        log.warn(
+                "Illegal argument while processing security event " +
+                        "correlationId={} message={}",
+                correlationId,
+                exception.getMessage()
+        );
+
         return buildResponse(
                 HttpStatus.NOT_FOUND,
-                exception.getMessage()
+                exception.getMessage(),
+                correlationId
         );
     }
 
+    /**
+     * Handles failures when Event Service cannot communicate
+     * with Device Service.
+     *
+     * This can occur when:
+     * - Device Service is unavailable
+     * - Retry attempts are exhausted
+     * - Circuit breaker is open
+     * - Device Service returns an invalid response
+     */
     @ExceptionHandler(DeviceServiceUnavailableException.class)
-    public ResponseEntity<Map<String, Object>> handleDeviceServiceUnavailable(
+    public ResponseEntity<Map<String, Object>>
+    handleDeviceServiceUnavailable(
             DeviceServiceUnavailableException exception) {
+
+        String correlationId =
+                MDC.get(CORRELATION_ID);
+
+        log.error(
+                "Device service unavailable " +
+                        "correlationId={} message={}",
+                correlationId,
+                exception.getMessage(),
+                exception
+        );
 
         return buildResponse(
                 HttpStatus.SERVICE_UNAVAILABLE,
-                exception.getMessage()
+                "Device service is currently unavailable.",
+                correlationId
         );
     }
 
+    /**
+     * Handles validation failures on incoming Event Service requests.
+     */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(
             MethodArgumentNotValidException exception) {
 
-        Map<String, String> errors = new HashMap<>();
+        String correlationId =
+                MDC.get(CORRELATION_ID);
+
+        Map<String, String> errors =
+                new HashMap<>();
 
         exception.getBindingResult()
                 .getFieldErrors()
@@ -49,38 +107,107 @@ public class GlobalExceptionHandler {
                         )
                 );
 
-        Map<String, Object> response = new HashMap<>();
+        log.warn(
+                "Security event request validation failed " +
+                        "correlationId={} validationErrors={}",
+                correlationId,
+                errors
+        );
 
-        response.put("timestamp", LocalDateTime.now());
-        response.put("status", HttpStatus.BAD_REQUEST.value());
-        response.put("error", "Validation failed");
-        response.put("details", errors);
+        Map<String, Object> response =
+                new HashMap<>();
+
+        response.put(
+                "timestamp",
+                LocalDateTime.now()
+        );
+
+        response.put(
+                "status",
+                HttpStatus.BAD_REQUEST.value()
+        );
+
+        response.put(
+                "error",
+                "Validation failed"
+        );
+
+        response.put(
+                "details",
+                errors
+        );
+
+        response.put(
+                "correlationId",
+                correlationId
+        );
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(response);
     }
 
+    /**
+     * Handles unexpected exceptions.
+     */
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, Object>> handleGeneralException(
+    public ResponseEntity<Map<String, Object>>
+    handleGeneralException(
             Exception exception) {
+
+        String correlationId =
+                MDC.get(CORRELATION_ID);
+
+        log.error(
+                "Unhandled exception in event service " +
+                        "correlationId={}",
+                correlationId,
+                exception
+        );
 
         return buildResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR,
-                "An unexpected error occurred."
+                "An unexpected error occurred.",
+                correlationId
         );
     }
 
+    /**
+     * Builds a standard error response containing
+     * the correlation ID.
+     */
     private ResponseEntity<Map<String, Object>> buildResponse(
             HttpStatus status,
-            String message) {
+            String message,
+            String correlationId) {
 
-        Map<String, Object> response = new HashMap<>();
+        Map<String, Object> response =
+                new HashMap<>();
 
-        response.put("timestamp", LocalDateTime.now());
-        response.put("status", status.value());
-        response.put("error", status.getReasonPhrase());
-        response.put("message", message);
+        response.put(
+                "timestamp",
+                LocalDateTime.now()
+        );
+
+        response.put(
+                "status",
+                status.value()
+        );
+
+        response.put(
+                "error",
+                status.getReasonPhrase()
+        );
+
+        response.put(
+                "message",
+                message
+        );
+
+        response.put(
+                "correlationId",
+                correlationId
+        );
 
         return ResponseEntity
                 .status(status)

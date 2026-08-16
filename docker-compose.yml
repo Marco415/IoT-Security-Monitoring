@@ -1,8 +1,138 @@
 services:
 
-  # ==========================================================
+  # =========================================================
+  # ELASTICSEARCH
+  # =========================================================
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.1.2
+    container_name: iot-elasticsearch
+    restart: unless-stopped
+
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      xpack.security.enrollment.enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+
+    ports:
+      - "9200:9200"
+
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+
+    networks:
+      - iot-network
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fs http://localhost:9200/_cluster/health || exit 1"
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+
+  # =========================================================
+  # LOGSTASH
+  # =========================================================
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:9.1.2
+    container_name: iot-logstash
+    restart: unless-stopped
+
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+    volumes:
+      - ./logs:/logs
+      - ./elk/logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+
+    ports:
+      - "5000:5000"
+
+    networks:
+      - iot-network
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fs http://localhost:9600/_node/pipelines || exit 1"
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+
+  # =========================================================
+  # KIBANA
+  # =========================================================
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:9.1.2
+    container_name: iot-kibana
+    restart: unless-stopped
+
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+    environment:
+      ELASTICSEARCH_HOSTS: "http://elasticsearch:9200"
+
+    ports:
+      - "5601:5601"
+
+    networks:
+      - iot-network
+
+
+  # =========================================================
+  # EUREKA SERVER
+  # =========================================================
+
+  eureka-server:
+    build:
+      context: ./eureka-server
+
+    container_name: eureka-server
+    restart: unless-stopped
+
+    ports:
+      - "8761:8761"
+
+    environment:
+      SERVER_PORT: 8761
+
+    networks:
+      - iot-network
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8761/actuator/health"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+
+  # =========================================================
   # DEVICE DATABASE
-  # ==========================================================
+  # =========================================================
 
   device-db:
     image: postgres:18
@@ -20,6 +150,9 @@ services:
     volumes:
       - device-db-data:/var/lib/postgresql/data
 
+    networks:
+      - iot-network
+
     healthcheck:
       test:
         [
@@ -29,11 +162,12 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
 
-  # ==========================================================
+  # =========================================================
   # EVENT DATABASE
-  # ==========================================================
+  # =========================================================
 
   event-db:
     image: postgres:18
@@ -51,6 +185,9 @@ services:
     volumes:
       - event-db-data:/var/lib/postgresql/data
 
+    networks:
+      - iot-network
+
     healthcheck:
       test:
         [
@@ -60,11 +197,12 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
 
-  # ==========================================================
+  # =========================================================
   # AUTH DATABASE
-  # ==========================================================
+  # =========================================================
 
   auth-db:
     image: postgres:18
@@ -82,6 +220,9 @@ services:
     volumes:
       - auth-db-data:/var/lib/postgresql/data
 
+    networks:
+      - iot-network
+
     healthcheck:
       test:
         [
@@ -91,31 +232,47 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
 
-  # ==========================================================
+  # =========================================================
   # DEVICE SERVICE
-  # ==========================================================
+  # =========================================================
 
   device-service:
     build:
       context: ./device-service
 
     container_name: device-service
-
     restart: unless-stopped
 
     ports:
       - "8081:8081"
 
     environment:
+      SERVER_PORT: 8081
+
       SPRING_DATASOURCE_URL: jdbc:postgresql://device-db:5432/device_db
       SPRING_DATASOURCE_USERNAME: device_user
       SPRING_DATASOURCE_PASSWORD: device_password
 
+      LOGSTASH_HOST: logstash
+      LOGSTASH_PORT: 5000
+
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+
     depends_on:
       device-db:
         condition: service_healthy
+
+      eureka-server:
+        condition: service_healthy
+
+      logstash:
+        condition: service_healthy
+
+    networks:
+      - iot-network
 
     healthcheck:
       test:
@@ -133,27 +290,33 @@ services:
       start_period: 30s
 
 
-  # ==========================================================
+  # =========================================================
   # EVENT SERVICE
-  # ==========================================================
+  # =========================================================
 
   event-service:
     build:
       context: ./event-service
 
     container_name: event-service
-
     restart: unless-stopped
 
     ports:
       - "8082:8082"
 
     environment:
+      SERVER_PORT: 8082
+
       SPRING_DATASOURCE_URL: jdbc:postgresql://event-db:5432/event_db
       SPRING_DATASOURCE_USERNAME: event_user
       SPRING_DATASOURCE_PASSWORD: event_password
 
       DEVICE_SERVICE_URL: http://device-service:8081
+
+      LOGSTASH_HOST: logstash
+      LOGSTASH_PORT: 5000
+
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
 
     depends_on:
       event-db:
@@ -161,6 +324,15 @@ services:
 
       device-service:
         condition: service_healthy
+
+      eureka-server:
+        condition: service_healthy
+
+      logstash:
+        condition: service_healthy
+
+    networks:
+      - iot-network
 
     healthcheck:
       test:
@@ -178,29 +350,44 @@ services:
       start_period: 30s
 
 
-  # ==========================================================
+  # =========================================================
   # AUTH SERVICE
-  # ==========================================================
+  # =========================================================
 
   auth-service:
     build:
       context: ./auth-service
 
     container_name: auth-service
-
     restart: unless-stopped
 
     ports:
       - "8083:8083"
 
     environment:
+      SERVER_PORT: 8083
+
       SPRING_DATASOURCE_URL: jdbc:postgresql://auth-db:5432/auth_db
       SPRING_DATASOURCE_USERNAME: auth_user
       SPRING_DATASOURCE_PASSWORD: auth_password
 
+      LOGSTASH_HOST: logstash
+      LOGSTASH_PORT: 5000
+
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+
     depends_on:
       auth-db:
         condition: service_healthy
+
+      eureka-server:
+        condition: service_healthy
+
+      logstash:
+        condition: service_healthy
+
+    networks:
+      - iot-network
 
     healthcheck:
       test:
@@ -218,11 +405,71 @@ services:
       start_period: 30s
 
 
-# ============================================================
+  # =========================================================
+  # API GATEWAY
+  # =========================================================
+
+  gateway:
+    build:
+      context: ./gateway
+
+    container_name: iot-gateway
+    restart: unless-stopped
+
+    ports:
+      - "8080:8080"
+
+    environment:
+      SERVER_PORT: 8080
+
+      LOGSTASH_HOST: logstash
+      LOGSTASH_PORT: 5000
+
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+
+      auth-service:
+        condition: service_healthy
+
+      device-service:
+        condition: service_healthy
+
+      event-service:
+        condition: service_healthy
+
+      logstash:
+        condition: service_healthy
+
+    networks:
+      - iot-network
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8080/actuator/health"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+
+# =========================================================
 # VOLUMES
-# ============================================================
+# =========================================================
 
 volumes:
+
+  elasticsearch-data:
+    name: iot-elasticsearch-data
 
   device-db-data:
     name: iot-device-db-data
@@ -232,3 +479,14 @@ volumes:
 
   auth-db-data:
     name: iot-auth-db-data
+
+
+# =========================================================
+# NETWORK
+# =========================================================
+
+networks:
+
+  iot-network:
+    name: iot-network
+    driver: bridge

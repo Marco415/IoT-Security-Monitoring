@@ -29,7 +29,7 @@ public class SecurityEvent {
 
     @Column(name = "device_id", nullable = false, length = 100)
     @NotBlank
-    private String deviceId;
+    private Long deviceId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "event_type", nullable = false, length = 50)
@@ -86,11 +86,11 @@ public class SecurityEvent {
         this.eventId = eventId;
     }
 
-    public String getDeviceId() {
+    public Long getDeviceId() {
         return deviceId;
     }
 
-    public void setDeviceId(String deviceId) {
+    public void setDeviceId(Long deviceId) {
         this.deviceId = deviceId;
     }
 

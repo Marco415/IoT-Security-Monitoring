@@ -14,6 +14,21 @@ spring:
 server:
   port: ${SERVER_PORT:8761}
 
+# =========================================================
+# LOGGING
+# =========================================================
+logging:
+  file:
+    name: ${LOGGING_FILE_NAME:/logs/eureka-server.log}
+
+  structured:
+    format:
+      file: logstash
+
+  level:
+    root: INFO
+    com.iotsecurity: INFO
+
 
 # =========================================================
 # EUREKA SERVER
@@ -58,7 +73,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics
 
   endpoint:
     health:

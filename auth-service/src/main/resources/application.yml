@@ -79,6 +79,7 @@ management:
         include:
           - health
           - info
+          - metrics
 
   endpoint:
     health:
@@ -97,3 +98,19 @@ info:
     name: Authentication Service
     description: IoT Security Authentication Microservice
     version: 0.0.1
+
+# =========================================================
+# LOGGING
+# =========================================================
+
+logging:
+  file:
+    name: ${LOGGING_FILE_NAME:/logs/auth-service.log}
+
+  structured:
+    format:
+      file: logstash
+
+  level:
+    root: INFO
+    com.iotsecurity.auth: INFO

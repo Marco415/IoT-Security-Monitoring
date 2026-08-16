@@ -78,11 +78,10 @@ client:
 # =========================================================
 
 management:
-
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics
 
   endpoint:
     health:
@@ -92,12 +91,55 @@ management:
     defaults:
       enabled: true
 
+    circuitbreakers:
+      enabled: true
+
+# =========================================================
+# CIRCUIT BREAKER
+# =========================================================
+
+resilience4j:
+
+  retry:
+    instances:
+
+      deviceServiceRetry:
+        maxAttempts: 3
+        waitDuration: 500ms
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - java.io.IOException
+          - org.springframework.web.client.ResourceAccessException
+          - org.springframework.web.client.HttpServerErrorException
+
+  circuitbreaker:
+    instances:
+
+      deviceServiceCircuitBreaker:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: 2s
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
 
 # =========================================================
 # LOGGING
 # =========================================================
 
 logging:
+  file:
+    name: ${LOGGING_FILE_NAME:/logs/event-service.log}
+
+  structured:
+    format:
+      file: logstash
+
   level:
+    root: INFO
     com.iotsecurity.event: INFO
-    org.springframework.web: INFO

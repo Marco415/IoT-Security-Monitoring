@@ -46,3 +46,15 @@ info:
     name: Device Service
     description: IoT Security Monitoring Device Service
     version: 0.0.1
+
+logging:
+  file:
+    name: ${LOGGING_FILE_NAME:/logs/device-service.log}
+
+  structured:
+    format:
+      file: logstash
+
+  level:
+    root: INFO
+    com.iotsecurity.device: INFO
