@@ -187,7 +187,6 @@ public class JwtAuthenticationFilter
                         "Security context already authenticated " +
                                 "username={} method={} uri={} correlationId={}",
                         username,
-                        httpMethod,
                         requestUri,
                         correlationId
                 );
