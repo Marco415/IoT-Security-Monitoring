@@ -11,9 +11,9 @@ spring:
   # =======================================================
 
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:auth_db}
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:postgres}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5435/auth_db}
+    username: ${SPRING_DATASOURCE_USERNAME:auth_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:auth_password}
     driver-class-name: org.postgresql.Driver
 
   # =======================================================
@@ -31,7 +31,7 @@ spring:
 # =========================================================
 
 server:
-  port: 8083
+  port: ${SERVER_PORT:8083}
 
 # =========================================================
 # JWT
@@ -54,7 +54,7 @@ eureka:
     fetch-registry: true
 
     service-url:
-      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://localhost:8761/eureka/}
 
     # Allows Eureka to use the application's health status.
     healthcheck:
@@ -83,7 +83,7 @@ management:
 
   endpoint:
     health:
-      show-details: when-authorized
+      show-details: always
 
   info:
     env:

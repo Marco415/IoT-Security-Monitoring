@@ -11,9 +11,9 @@ spring:
   # =======================================================
 
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/event_db}
-    username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5434/event_db}
+    username: ${SPRING_DATASOURCE_USERNAME:event_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:event_password}
     driver-class-name: org.postgresql.Driver
 
   # =======================================================
@@ -44,7 +44,7 @@ spring:
 # =========================================================
 
 server:
-  port: 8082
+  port: ${SERVER_PORT:8082}
 
 
 # =========================================================
@@ -58,7 +58,7 @@ eureka:
     fetch-registry: true
 
     serviceUrl:
-      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+      ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://localhost:8761/eureka/}
 
   instance:
     prefer-ip-address: true

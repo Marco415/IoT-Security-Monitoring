@@ -118,10 +118,8 @@ services:
       test:
         [
           "CMD",
-          "wget",
-          "--no-verbose",
-          "--tries=1",
-          "--spider",
+          "curl",
+          "-f",
           "http://localhost:8761/actuator/health"
         ]
       interval: 10s
@@ -140,15 +138,15 @@ services:
     restart: unless-stopped
 
     environment:
-      POSTGRES_DB: device_db
-      POSTGRES_USER: device_user
-      POSTGRES_PASSWORD: device_password
+      POSTGRES_DB: ${DEVICE_DB}
+      POSTGRES_USER: ${DEVICE_DB_USER}
+      POSTGRES_PASSWORD: ${DEVICE_DB_PASSWORD}
 
     ports:
       - "5433:5432"
 
     volumes:
-      - device-db-data:/var/lib/postgresql/data
+      - device-db-data:/var/lib/postgresql
 
     networks:
       - iot-network
@@ -157,7 +155,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "pg_isready -U device_user -d device_db"
+          "pg_isready -U ${DEVICE_DB_USER} -d ${DEVICE_DB}"
         ]
       interval: 10s
       timeout: 5s
@@ -175,15 +173,15 @@ services:
     restart: unless-stopped
 
     environment:
-      POSTGRES_DB: event_db
-      POSTGRES_USER: event_user
-      POSTGRES_PASSWORD: event_password
+      POSTGRES_DB: ${EVENT_DB}
+      POSTGRES_USER: ${EVENT_DB_USER}
+      POSTGRES_PASSWORD: ${EVENT_DB_PASSWORD}
 
     ports:
       - "5434:5432"
 
     volumes:
-      - event-db-data:/var/lib/postgresql/data
+      - event-db-data:/var/lib/postgresql
 
     networks:
       - iot-network
@@ -192,7 +190,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "pg_isready -U event_user -d event_db"
+          "pg_isready -U ${EVENT_DB_USER} -d ${EVENT_DB}"
         ]
       interval: 10s
       timeout: 5s
@@ -210,15 +208,15 @@ services:
     restart: unless-stopped
 
     environment:
-      POSTGRES_DB: auth_db
-      POSTGRES_USER: auth_user
-      POSTGRES_PASSWORD: auth_password
+      POSTGRES_DB: ${AUTH_DB}
+      POSTGRES_USER: ${AUTH_DB_USER}
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD}
 
     ports:
       - "5435:5432"
 
     volumes:
-      - auth-db-data:/var/lib/postgresql/data
+      - auth-db-data:/var/lib/postgresql
 
     networks:
       - iot-network
@@ -227,7 +225,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "pg_isready -U auth_user -d auth_db"
+          "pg_isready -U ${AUTH_DB_USER} -d ${AUTH_DB}"
         ]
       interval: 10s
       timeout: 5s
@@ -278,10 +276,8 @@ services:
       test:
         [
           "CMD",
-          "wget",
-          "--no-verbose",
-          "--tries=1",
-          "--spider",
+          "curl",
+          "-f",
           "http://localhost:8081/actuator/health"
         ]
       interval: 10s
@@ -338,10 +334,8 @@ services:
       test:
         [
           "CMD",
-          "wget",
-          "--no-verbose",
-          "--tries=1",
-          "--spider",
+          "curl",
+          "-f",
           "http://localhost:8082/actuator/health"
         ]
       interval: 10s
@@ -393,10 +387,8 @@ services:
       test:
         [
           "CMD",
-          "wget",
-          "--no-verbose",
-          "--tries=1",
-          "--spider",
+          "curl",
+          "-f",
           "http://localhost:8083/actuator/health"
         ]
       interval: 10s
@@ -452,11 +444,9 @@ services:
       test:
         [
           "CMD",
-          "wget",
-          "--no-verbose",
-          "--tries=1",
-          "--spider",
-          "http://localhost:8080/actuator/health"
+          "curl",
+          "-f",
+          "http://localhost:8090/actuator/health"
         ]
       interval: 10s
       timeout: 5s
