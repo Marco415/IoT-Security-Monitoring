@@ -9,7 +9,7 @@ import jakarta.validation.constraints.Size;
 public record EventRequest(
 
         @NotBlank(message = "deviceId is required")
-        Long deviceId,
+        String deviceId,
 
         @NotNull(message = "eventType is required")
         EventType eventType,

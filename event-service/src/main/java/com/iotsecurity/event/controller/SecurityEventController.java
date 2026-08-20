@@ -82,7 +82,7 @@ public class SecurityEventController {
     @GetMapping("/device/{deviceId}")
     public ResponseEntity<List<SecurityEvent>>
     getEventsByDevice(
-            @PathVariable Long deviceId) {
+            @PathVariable String deviceId) {
 
         log.info(
                 "Received request to retrieve security events deviceId={}",

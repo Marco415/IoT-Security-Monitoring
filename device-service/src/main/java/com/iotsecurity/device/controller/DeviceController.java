@@ -54,6 +54,20 @@ public class DeviceController {
         );
     }
 
+    @GetMapping("/device-id/{deviceId}")
+    public ResponseEntity<Device> getDeviceByDeviceId(
+            @PathVariable String deviceId) {
+
+        log.info(
+                "Retrieving IoT device deviceId={}",
+                deviceId
+        );
+
+        return ResponseEntity.ok(
+                deviceService.getDeviceByDeviceId(deviceId)
+        );
+    }
+
     @PostMapping
     public ResponseEntity<Device> createDevice(
             @Valid @RequestBody Device device) {

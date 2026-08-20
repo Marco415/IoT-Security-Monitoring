@@ -65,6 +65,30 @@ public class DeviceService {
                 });
     }
 
+    public Device getDeviceByDeviceId(String deviceId) {
+
+        log.info(
+                "Retrieving IoT device deviceId={}",
+                deviceId
+        );
+
+        return deviceRepository
+                .findByDeviceId(deviceId)
+                .orElseThrow(() -> {
+
+                    log.warn(
+                            "IoT device not found deviceId={}",
+                            deviceId
+                    );
+
+                    return new DeviceNotFoundException(
+                            "Device with device ID " +
+                                    deviceId +
+                                    " was not found."
+                    );
+                });
+    }
+
     public Device createDevice(Device device) {
 
         log.info(

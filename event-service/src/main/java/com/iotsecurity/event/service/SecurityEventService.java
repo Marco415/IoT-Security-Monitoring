@@ -136,7 +136,7 @@ public class SecurityEventService {
 
     @Transactional
     public List<SecurityEvent> getEventsByDeviceId(
-            Long deviceId) {
+            String deviceId) {
 
         log.info(
                 "Retrieving security events deviceId={}",
