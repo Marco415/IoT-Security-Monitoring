@@ -3,6 +3,11 @@
 }
 
 
+html {
+    scroll-behavior: smooth;
+}
+
+
 body {
     margin: 0;
 
@@ -22,9 +27,11 @@ body {
 .container {
     width: 90%;
 
-    max-width: 1100px;
+    max-width: 1200px;
 
     margin: 40px auto;
+
+    padding-bottom: 40px;
 }
 
 
@@ -78,8 +85,31 @@ header h1 {
 }
 
 
+.card h3 {
+    margin-top: 0;
+}
+
+
+.section-heading {
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    gap: 20px;
+}
+
+
+.section-description {
+    color: #666;
+
+    margin-top: -2px;
+}
+
+
 /* ============================================================
-   FORM
+   FORMS
    ============================================================ */
 
 .form-group {
@@ -96,7 +126,9 @@ header h1 {
 }
 
 
-.form-group input {
+.form-group input,
+.form-group select,
+.form-group textarea {
     width: 100%;
 
     padding: 11px;
@@ -106,13 +138,88 @@ header h1 {
     border-radius: 5px;
 
     font-size: 15px;
+
+    font-family: inherit;
 }
 
 
-.form-group input:focus {
+.form-group textarea {
+    resize: vertical;
+
+    min-height: 100px;
+}
+
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
     outline: none;
 
     border-color: #2563eb;
+
+    box-shadow:
+        0 0 0 2px rgba(37, 99, 235, 0.12);
+}
+
+
+.form-grid {
+    display: grid;
+
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+
+    gap: 15px;
+}
+
+
+.full-width {
+    grid-column: 1 / -1;
+}
+
+
+/* ============================================================
+   SEARCH
+   ============================================================ */
+
+.search-panel {
+    background: #f8fafc;
+
+    border: 1px solid #e5e7eb;
+
+    border-radius: 7px;
+
+    padding: 15px;
+
+    margin-bottom: 15px;
+}
+
+
+.search-panel .form-group {
+    margin-bottom: 5px;
+}
+
+
+/* ============================================================
+   INLINE FORMS
+   ============================================================ */
+
+.inline-form {
+    background: #f8fafc;
+
+    border: 1px solid #dbeafe;
+
+    border-radius: 7px;
+
+    padding: 20px;
+
+    margin-top: 20px;
+
+    margin-bottom: 20px;
+}
+
+
+.hidden {
+    display: none !important;
 }
 
 
@@ -143,11 +250,27 @@ button {
     font-size: 14px;
 
     font-weight: bold;
+
+    transition:
+        opacity 0.15s ease,
+        transform 0.1s ease;
 }
 
 
 button:hover {
     opacity: 0.85;
+}
+
+
+button:active {
+    transform: translateY(1px);
+}
+
+
+button:disabled {
+    opacity: 0.55;
+
+    cursor: not-allowed;
 }
 
 
@@ -166,6 +289,45 @@ button.secondary {
 
 
 button.danger {
+    background: #dc2626;
+
+    color: white;
+}
+
+
+button.warning {
+    background: #d97706;
+
+    color: white;
+}
+
+
+button.success {
+    background: #16a34a;
+
+    color: white;
+}
+
+
+.small-button {
+    padding: 7px 10px;
+
+    font-size: 12px;
+
+    margin-right: 5px;
+
+    margin-bottom: 5px;
+}
+
+
+.edit-button {
+    background: #2563eb;
+
+    color: white;
+}
+
+
+.delete-button {
     background: #dc2626;
 
     color: white;
@@ -200,6 +362,8 @@ table {
     border-collapse: collapse;
 
     margin-top: 10px;
+
+    min-width: 900px;
 }
 
 
@@ -222,6 +386,16 @@ table th {
 }
 
 
+table tbody tr:hover {
+    background: #f8fafc;
+}
+
+
+.actions-cell {
+    min-width: 150px;
+}
+
+
 /* ============================================================
    STATUS
    ============================================================ */
@@ -239,6 +413,11 @@ table th {
     gap: 10px;
 
     margin-bottom: 12px;
+}
+
+
+.status-row:last-child {
+    margin-bottom: 0;
 }
 
 
@@ -267,29 +446,98 @@ table th {
 }
 
 
-.status.success {
+/* ============================================================
+   NOTIFICATION
+   ============================================================ */
+
+.notification {
+    position: sticky;
+
+    top: 15px;
+
+    z-index: 1000;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+
+    padding: 14px 16px;
+
+    border-radius: 7px;
+
+    margin-bottom: 20px;
+
+    box-shadow:
+        0 4px 15px rgba(0, 0, 0, 0.12);
+}
+
+
+.notification.hidden {
+    display: none;
+}
+
+
+.notification.success {
     background: #dcfce7;
 
     color: #166534;
+
+    border: 1px solid #86efac;
 }
 
 
-.status.error {
+.notification.error {
     background: #fee2e2;
 
     color: #991b1b;
+
+    border: 1px solid #fca5a5;
 }
 
 
-.status.unknown {
-    background: #e5e7eb;
+.notification.info {
+    background: #dbeafe;
 
-    color: #374151;
+    color: #1e40af;
+
+    border: 1px solid #93c5fd;
+}
+
+
+.notification.warning {
+    background: #fef3c7;
+
+    color: #92400e;
+
+    border: 1px solid #fcd34d;
+}
+
+
+.notification-close {
+    margin-left: auto;
+
+    padding: 0;
+
+    width: 28px;
+
+    height: 28px;
+
+    border-radius: 50%;
+
+    background: transparent;
+
+    color: inherit;
+
+    font-size: 22px;
+
+    line-height: 20px;
 }
 
 
 /* ============================================================
-   MESSAGES
+   OLD MESSAGE AREA
    ============================================================ */
 
 .message-container {
@@ -357,6 +605,13 @@ table th {
 }
 
 
+.badge-critical {
+    background: #7f1d1d;
+
+    color: white;
+}
+
+
 .badge-medium {
     background: #fef3c7;
 
@@ -372,10 +627,45 @@ table th {
 
 
 /* ============================================================
+   LOADING
+   ============================================================ */
+
+.loading {
+    display: inline-block;
+
+    width: 16px;
+
+    height: 16px;
+
+    border: 2px solid currentColor;
+
+    border-right-color: transparent;
+
+    border-radius: 50%;
+
+    animation:
+        spin 0.7s linear infinite;
+
+    vertical-align: middle;
+
+    margin-right: 7px;
+}
+
+
+@keyframes spin {
+
+    to {
+        transform: rotate(360deg);
+    }
+
+}
+
+
+/* ============================================================
    MOBILE
    ============================================================ */
 
-@media (max-width: 600px) {
+@media (max-width: 700px) {
 
     .container {
         width: 95%;
@@ -399,12 +689,27 @@ table th {
     }
 
 
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+
+
+    .full-width {
+        grid-column: auto;
+    }
+
+
     .status-row {
         flex-direction: column;
 
         align-items: flex-start;
 
         gap: 5px;
+    }
+
+
+    .notification {
+        top: 5px;
     }
 
 }

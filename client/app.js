@@ -3,24 +3,27 @@
  * IoT SECURITY MONITORING CLIENT
  * ============================================================
  *
- * Architecture:
- *
  * Browser
- *     |
- *     v
+ *    |
+ *    v
  * API Gateway :8090
- *     |
- *     +---- Auth Service   :8083
- *     |
- *     +---- Device Service :8081
- *     |
- *     +---- Event Service  :8082
- *     |
- *     v
+ *    |
+ *    +---- Auth Service   :8083
+ *    |
+ *    +---- Device Service :8081
+ *    |
+ *    +---- Event Service  :8082
+ *    |
+ *    v
  * Eureka Server :8761
  *
  *
+ * IMPORTANT:
+ *
  * The browser ONLY communicates with port 8090.
+ *
+ * Health-check functionality has intentionally been removed.
+ * ============================================================
  */
 
 
@@ -28,7 +31,54 @@
    CONFIGURATION
    ============================================================ */
 
-const API_BASE_URL = "http://localhost:8090";
+const API_BASE_URL =
+    "http://localhost:8090";
+
+
+/* ============================================================
+   EVENT ENUMS
+   ============================================================ */
+
+const EVENT_TYPES = [
+
+    "UNAUTHORIZED_ACCESS",
+
+    "FAILED_LOGIN",
+
+    "BRUTE_FORCE",
+
+    "MALWARE_DETECTED",
+
+    "SUSPICIOUS_NETWORK_ACTIVITY",
+
+    "PORT_SCAN",
+
+    "DEVICE_OFFLINE",
+
+    "DEVICE_TAMPERING",
+
+    "DATA_EXFILTRATION",
+
+    "ANOMALOUS_BEHAVIOR",
+
+    "POLICY_VIOLATION",
+
+    "OTHER"
+
+];
+
+
+const EVENT_SEVERITIES = [
+
+    "LOW",
+
+    "MEDIUM",
+
+    "HIGH",
+
+    "CRITICAL"
+
+];
 
 
 /* ============================================================
@@ -38,97 +88,324 @@ const API_BASE_URL = "http://localhost:8090";
 const usernameInput =
     document.getElementById("username");
 
+
 const passwordInput =
     document.getElementById("password");
+
 
 const loginButton =
     document.getElementById("loginButton");
 
+
 const logoutButton =
     document.getElementById("logoutButton");
+
 
 const registerDeviceButton =
     document.getElementById("registerDeviceButton");
 
+
 const viewDevicesButton =
     document.getElementById("viewDevicesButton");
 
-const createEventButton =
-    document.getElementById("createEventButton");
 
-const viewEventsButton =
-    document.getElementById("viewEventsButton");
+const searchDevicesButton =
+    document.getElementById("searchDevicesButton");
+
+
+const clearDeviceSearchButton =
+    document.getElementById("clearDeviceSearchButton");
+
+
+const deviceSearch =
+    document.getElementById("deviceSearch");
+
 
 const devicesContainer =
     document.getElementById("devicesContainer");
 
+
+const deviceFormContainer =
+    document.getElementById("deviceFormContainer");
+
+
+const deviceFormTitle =
+    document.getElementById("deviceFormTitle");
+
+
+const deviceDatabaseId =
+    document.getElementById("deviceDatabaseId");
+
+
+const deviceIdInput =
+    document.getElementById("deviceIdInput");
+
+
+const deviceNameInput =
+    document.getElementById("deviceNameInput");
+
+
+const deviceTypeInput =
+    document.getElementById("deviceTypeInput");
+
+
+const deviceManufacturerInput =
+    document.getElementById("deviceManufacturerInput");
+
+
+const deviceIpInput =
+    document.getElementById("deviceIpInput");
+
+
+const deviceLocationInput =
+    document.getElementById("deviceLocationInput");
+
+
+const deviceStatusInput =
+    document.getElementById("deviceStatusInput");
+
+
+const saveDeviceButton =
+    document.getElementById("saveDeviceButton");
+
+
+const cancelDeviceButton =
+    document.getElementById("cancelDeviceButton");
+
+
+const createEventButton =
+    document.getElementById("createEventButton");
+
+
+const viewEventsButton =
+    document.getElementById("viewEventsButton");
+
+
+const searchEventsButton =
+    document.getElementById("searchEventsButton");
+
+
+const clearEventSearchButton =
+    document.getElementById("clearEventSearchButton");
+
+
+const eventSearch =
+    document.getElementById("eventSearch");
+
+
 const eventsContainer =
     document.getElementById("eventsContainer");
+
+
+const eventFormContainer =
+    document.getElementById("eventFormContainer");
+
+
+const eventFormTitle =
+    document.getElementById("eventFormTitle");
+
+
+const eventDatabaseId =
+    document.getElementById("eventDatabaseId");
+
+
+const eventIdInput =
+    document.getElementById("eventIdInput");
+
+
+const eventDeviceInput =
+    document.getElementById("eventDeviceInput");
+
+
+const eventTypeInput =
+    document.getElementById("eventTypeInput");
+
+
+const eventSeverityInput =
+    document.getElementById("eventSeverityInput");
+
+
+const eventSourceIpInput =
+    document.getElementById("eventSourceIpInput");
+
+
+const eventDescriptionInput =
+    document.getElementById("eventDescriptionInput");
+
+
+const eventStatusInput =
+    document.getElementById("eventStatusInput");
+
+
+const saveEventButton =
+    document.getElementById("saveEventButton");
+
+
+const cancelEventButton =
+    document.getElementById("cancelEventButton");
+
+
+const notification =
+    document.getElementById("notification");
+
+
+const notificationText =
+    document.getElementById("notificationText");
+
+
+const closeNotificationButton =
+    document.getElementById("closeNotificationButton");
+
 
 const messageContainer =
     document.getElementById("messageContainer");
 
-const gatewayStatus =
-    document.getElementById("gatewayStatus");
 
 const authenticationStatus =
     document.getElementById("authenticationStatus");
+
 
 const jwtStatus =
     document.getElementById("jwtStatus");
 
 
 /* ============================================================
-   GENERAL FUNCTIONS
+   STATE
    ============================================================ */
 
+let devicesCache = [];
+
+let eventsCache = [];
+
+
+/* ============================================================
+   NOTIFICATIONS
+   ============================================================ */
 
 /*
- * Display a message.
+ * Display an immediately visible notification.
+ *
+ * This replaces relying only on the old message area at
+ * the bottom of the page.
  */
-function showMessage(message, type = "info") {
 
-    messageContainer.innerHTML = `
-        <div class="message ${type}">
-            ${escapeHtml(message)}
-        </div>
-    `;
+function showNotification(
+    message,
+    type = "info"
+) {
+
+    notification.className =
+        `notification ${type}`;
+
+    notificationText.textContent =
+        message;
+
+    notification.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest"
+    });
+
+
+    /*
+     * Also keep the old message area populated so the
+     * existing feature is not removed.
+     */
+
+    showMessage(
+        message,
+        type
+    );
 }
 
 
 /*
- * Escape HTML.
+ * Hide notification.
  */
+
+function hideNotification() {
+
+    notification.className =
+        "notification hidden";
+}
+
+
+/*
+ * Existing message function retained.
+ */
+
+function showMessage(
+    message,
+    type = "info"
+) {
+
+    messageContainer.innerHTML = `
+
+        <div class="message ${type}">
+
+            ${escapeHtml(message)}
+
+        </div>
+
+    `;
+}
+
+
+/* ============================================================
+   HTML ESCAPING
+   ============================================================ */
+
 function escapeHtml(value) {
 
     if (
         value === null ||
         value === undefined
     ) {
+
         return "";
     }
 
+
     return String(value)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+
+        .replace(
+            /</g,
+            "&lt;"
+        )
+
+        .replace(
+            />/g,
+            "&gt;"
+        )
+
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+
+        .replace(
+            /'/g,
+            "&#039;"
+        );
 }
 
 
-/*
- * Get JWT.
- */
+/* ============================================================
+   JWT
+   ============================================================ */
+
 function getJwt() {
 
-    return localStorage.getItem("jwt");
+    return localStorage.getItem(
+        "jwt"
+    );
 }
 
 
-/*
- * Save JWT.
- */
 function saveJwt(token) {
 
     localStorage.setItem(
@@ -140,23 +417,20 @@ function saveJwt(token) {
 }
 
 
-/*
- * Remove JWT.
- */
 function removeJwt() {
 
-    localStorage.removeItem("jwt");
+    localStorage.removeItem(
+        "jwt"
+    );
 
     updateAuthenticationStatus();
 }
 
 
-/*
- * Update authentication status.
- */
 function updateAuthenticationStatus() {
 
-    const token = getJwt();
+    const token =
+        getJwt();
 
 
     if (token) {
@@ -192,12 +466,10 @@ function updateAuthenticationStatus() {
 }
 
 
-/*
- * Create Authorization header.
- */
 function getAuthHeaders() {
 
-    const token = getJwt();
+    const token =
+        getJwt();
 
 
     if (!token) {
@@ -210,14 +482,18 @@ function getAuthHeaders() {
 
         "Authorization":
             `Bearer ${token}`
+
     };
 }
 
 
-/*
- * Handle HTTP errors.
- */
-async function handleResponse(response) {
+/* ============================================================
+   RESPONSE HANDLING
+   ============================================================ */
+
+async function handleResponse(
+    response
+) {
 
     if (response.ok) {
 
@@ -229,21 +505,59 @@ async function handleResponse(response) {
         `HTTP ${response.status}`;
 
 
+    /*
+     * Specifically identify gateway/service failures.
+     */
+
+    if (
+        response.status === 503
+    ) {
+
+        errorMessage =
+            "Service unavailable. The API Gateway could not reach the required microservice.";
+
+    } else if (
+        response.status === 502
+    ) {
+
+        errorMessage =
+            "Bad gateway. The API Gateway could not communicate correctly with the microservice.";
+
+    } else if (
+        response.status === 504
+    ) {
+
+        errorMessage =
+            "Gateway timeout. The microservice did not respond in time.";
+    }
+
+
     try {
 
         const errorData =
             await response.json();
 
 
-        if (errorData.message) {
+        if (
+            errorData.message
+        ) {
 
             errorMessage =
                 errorData.message;
 
-        } else if (errorData.error) {
+        } else if (
+            errorData.error
+        ) {
 
             errorMessage =
                 errorData.error;
+
+        } else if (
+            errorData.detail
+        ) {
+
+            errorMessage =
+                errorData.detail;
         }
 
     } catch (error) {
@@ -260,10 +574,9 @@ async function handleResponse(response) {
 }
 
 
-/*
- * Parse JSON safely.
- */
-async function parseJsonResponse(response) {
+async function parseJsonResponse(
+    response
+) {
 
     const text =
         await response.text();
@@ -277,7 +590,9 @@ async function parseJsonResponse(response) {
 
     try {
 
-        return JSON.parse(text);
+        return JSON.parse(
+            text
+        );
 
     } catch (error) {
 
@@ -286,25 +601,17 @@ async function parseJsonResponse(response) {
 }
 
 
-/*
- * Convert response into an array.
- *
- * Supports:
- *
- * [
- *   {...},
- *   {...}
- * ]
- *
- * and Spring Page:
- *
- * {
- *   "content": [...]
- * }
- */
-function convertToArray(data) {
+/* ============================================================
+   ARRAY CONVERSION
+   ============================================================ */
 
-    if (Array.isArray(data)) {
+function convertToArray(
+    data
+) {
+
+    if (
+        Array.isArray(data)
+    ) {
 
         return data;
     }
@@ -312,7 +619,9 @@ function convertToArray(data) {
 
     if (
         data &&
-        Array.isArray(data.content)
+        Array.isArray(
+            data.content
+        )
     ) {
 
         return data.content;
@@ -330,19 +639,58 @@ function convertToArray(data) {
 
 
 /* ============================================================
+   GENERIC FETCH
+   ============================================================ */
+
+async function apiRequest(
+    url,
+    options = {}
+) {
+
+    const response =
+        await fetch(
+            url,
+            {
+                ...options,
+
+                headers: {
+
+                    ...(options.body
+                        ? {
+                            "Content-Type":
+                                "application/json"
+                        }
+                        : {}),
+
+                    ...getAuthHeaders(),
+
+                    ...(options.headers || {})
+
+                }
+            }
+        );
+
+
+    await handleResponse(
+        response
+    );
+
+
+    return parseJsonResponse(
+        response
+    );
+}
+
+
+/* ============================================================
    LOGIN
    ============================================================ */
 
-
-/*
- * POST:
- *
- * http://localhost:8090/api/auth/login
- */
 async function login() {
 
     const username =
         usernameInput.value.trim();
+
 
     const password =
         passwordInput.value;
@@ -353,7 +701,7 @@ async function login() {
         !password
     ) {
 
-        showMessage(
+        showNotification(
             "Please enter a username and password.",
             "error"
         );
@@ -364,7 +712,11 @@ async function login() {
 
     try {
 
-        showMessage(
+        loginButton.disabled =
+            true;
+
+
+        showNotification(
             "Logging in...",
             "info"
         );
@@ -377,19 +729,22 @@ async function login() {
                     method: "POST",
 
                     headers: {
+
                         "Content-Type":
                             "application/json"
+
                     },
 
-                    body: JSON.stringify({
+                    body:
+                        JSON.stringify({
 
-                        username:
-                            username,
+                            username:
+                                username,
 
-                        password:
-                            password
+                            password:
+                                password
 
-                    })
+                        })
                 }
             );
 
@@ -405,9 +760,6 @@ async function login() {
             );
 
 
-        /*
-         * Accept common JWT response names.
-         */
         const token =
             data?.token ||
             data?.jwt ||
@@ -422,16 +774,26 @@ async function login() {
         }
 
 
-        saveJwt(token);
+        saveJwt(
+            token
+        );
 
 
-        passwordInput.value = "";
+        passwordInput.value =
+            "";
 
 
-        showMessage(
-            "Login successful. JWT stored in localStorage.",
+        showNotification(
+            "Login successful. Loading dashboard...",
             "success"
         );
+
+
+        /*
+         * Automatically load devices and events.
+         */
+
+        await loadDashboard();
 
 
     } catch (error) {
@@ -439,62 +801,364 @@ async function login() {
         removeJwt();
 
 
-        showMessage(
+        showNotification(
             `Login failed: ${error.message}`,
             "error"
         );
+
+    } finally {
+
+        loginButton.disabled =
+            false;
     }
 }
 
 
-/*
- * Logout.
- */
+/* ============================================================
+   LOGOUT
+   ============================================================ */
+
 function logout() {
 
     removeJwt();
 
 
-    showMessage(
-        "You have been logged out.",
+    /*
+     * Reset device state.
+     */
+
+    devicesCache =
+        [];
+
+
+    eventsCache =
+        [];
+
+
+    /*
+     * Reset device results.
+     */
+
+    devicesContainer.innerHTML = `
+
+        <p class="placeholder">
+            Login to load devices.
+        </p>
+
+    `;
+
+
+    /*
+     * Reset event results.
+     */
+
+    eventsContainer.innerHTML = `
+
+        <p class="placeholder">
+            Login to load security events.
+        </p>
+
+    `;
+
+
+    /*
+     * Close forms.
+     */
+
+    closeDeviceForm();
+
+    closeEventForm();
+
+
+    /*
+     * Clear searches.
+     */
+
+    deviceSearch.value =
+        "";
+
+    eventSearch.value =
+        "";
+
+
+    /*
+     * Reset status.
+     */
+
+    authenticationStatus.textContent =
+        "Logged out";
+
+    authenticationStatus.className =
+        "status logged-out";
+
+
+    jwtStatus.textContent =
+        "Not available";
+
+    jwtStatus.className =
+        "status logged-out";
+
+
+    showNotification(
+        "You have been logged out. Dashboard reset.",
         "success"
     );
 }
 
 
 /* ============================================================
-   DEVICE SERVICE
+   DASHBOARD LOADING
    ============================================================ */
 
+async function loadDashboard() {
 
-/*
- * Register a demonstration device.
- *
- * POST:
- *
- * /api/devices
- *
- *
- * Matches Device.java:
- *
- * deviceId
- * name
- * deviceType
- * manufacturer
- * ipAddress
- * location
- * status
- *
- *
- * createdAt and updatedAt are generated
- * by the Java entity.
- */
-async function registerDevice() {
+    /*
+     * Run both loads independently.
+     *
+     * If Event Service is unavailable, devices can still load.
+     */
+
+    showNotification(
+        "Loading devices and security events...",
+        "info"
+    );
+
+
+    const results =
+        await Promise.allSettled([
+
+            loadDevices(false),
+
+            loadSecurityEvents(false)
+
+        ]);
+
+
+    const deviceResult =
+        results[0];
+
+
+    const eventResult =
+        results[1];
+
+
+    if (
+        deviceResult.status === "fulfilled" &&
+        eventResult.status === "fulfilled"
+    ) {
+
+        showNotification(
+            "Dashboard loaded successfully.",
+            "success"
+        );
+
+    } else if (
+        deviceResult.status === "fulfilled"
+    ) {
+
+        showNotification(
+            "Devices loaded, but security events could not be loaded.",
+            "warning"
+        );
+
+    } else if (
+        eventResult.status === "fulfilled"
+    ) {
+
+        showNotification(
+            "Security events loaded, but devices could not be loaded.",
+            "warning"
+        );
+
+    } else {
+
+        showNotification(
+            "The dashboard could not load the required services.",
+            "error"
+        );
+    }
+}
+
+
+/* ============================================================
+   DEVICE FORM
+   ============================================================ */
+
+function openDeviceCreateForm() {
+
+    clearDeviceForm();
+
+
+    deviceFormTitle.textContent =
+        "Register Device";
+
+
+    saveDeviceButton.textContent =
+        "Register Device";
+
+
+    deviceFormContainer.classList.remove(
+        "hidden"
+    );
+
+
+    deviceFormContainer.scrollIntoView({
+        behavior: "smooth",
+        block: "center"
+    });
+}
+
+
+function openDeviceEditForm(
+    id
+) {
+
+    const device =
+        devicesCache.find(
+            item =>
+                String(item.id) ===
+                String(id)
+        );
+
+
+    if (!device) {
+
+        showNotification(
+            "The selected device could not be found.",
+            "error"
+        );
+
+        return;
+    }
+
+
+    deviceFormTitle.textContent =
+        "Edit Device";
+
+
+    saveDeviceButton.textContent =
+        "Update Device";
+
+
+    deviceDatabaseId.value =
+        device.id ?? "";
+
+
+    deviceIdInput.value =
+        device.deviceId ?? "";
+
+
+    deviceNameInput.value =
+        device.name ?? "";
+
+
+    deviceTypeInput.value =
+        device.deviceType ?? "";
+
+
+    deviceManufacturerInput.value =
+        device.manufacturer ?? "";
+
+
+    deviceIpInput.value =
+        device.ipAddress ?? "";
+
+
+    deviceLocationInput.value =
+        device.location ?? "";
+
+
+    deviceStatusInput.value =
+        device.status ?? "ACTIVE";
+
+
+    deviceFormContainer.classList.remove(
+        "hidden"
+    );
+
+
+    deviceFormContainer.scrollIntoView({
+        behavior: "smooth",
+        block: "center"
+    });
+}
+
+
+function clearDeviceForm() {
+
+    deviceDatabaseId.value =
+        "";
+
+    deviceIdInput.value =
+        "";
+
+    deviceNameInput.value =
+        "";
+
+    deviceTypeInput.value =
+        "";
+
+    deviceManufacturerInput.value =
+        "";
+
+    deviceIpInput.value =
+        "";
+
+    deviceLocationInput.value =
+        "";
+
+    deviceStatusInput.value =
+        "ACTIVE";
+}
+
+
+function closeDeviceForm() {
+
+    deviceFormContainer.classList.add(
+        "hidden"
+    );
+
+    clearDeviceForm();
+}
+
+
+/* ============================================================
+   DEVICE CREATE / UPDATE
+   ============================================================ */
+
+async function saveDevice() {
 
     if (!getJwt()) {
 
-        showMessage(
-            "Please login before registering a device.",
+        showNotification(
+            "Please login before saving a device.",
+            "error"
+        );
+
+        return;
+    }
+
+
+    const deviceId =
+        deviceIdInput.value.trim();
+
+
+    const name =
+        deviceNameInput.value.trim();
+
+
+    const deviceType =
+        deviceTypeInput.value.trim();
+
+
+    if (
+        !deviceId ||
+        !name ||
+        !deviceType
+    ) {
+
+        showNotification(
+            "Device ID, name and device type are required.",
             "error"
         );
 
@@ -505,49 +1169,83 @@ async function registerDevice() {
     const device = {
 
         deviceId:
-            "IOT-001",
+            deviceId,
 
         name:
-            "Security Camera 001",
+            name,
 
         deviceType:
-            "CAMERA",
+            deviceType,
 
         manufacturer:
-            "IoT Security Systems",
+            deviceManufacturerInput.value.trim(),
 
         ipAddress:
-            "192.168.1.101",
+            deviceIpInput.value.trim(),
 
         location:
-            "Main Entrance",
+            deviceLocationInput.value.trim(),
 
         status:
-            "ACTIVE"
+            deviceStatusInput.value
+
     };
+
+
+    const id =
+        deviceDatabaseId.value;
+
+
+    const isUpdate =
+        Boolean(id);
 
 
     try {
 
-        showMessage(
-            "Registering demonstration device...",
-            "info"
-        );
+        saveDeviceButton.disabled =
+            true;
 
 
-        const response =
-            await fetch(
-                `${API_BASE_URL}/api/devices`,
+        if (isUpdate) {
+
+            showNotification(
+                "Updating device...",
+                "info"
+            );
+
+        } else {
+
+            showNotification(
+                "Registering device...",
+                "info"
+            );
+        }
+
+
+        /*
+         * PUT:
+         *
+         * /api/devices/{id}
+         */
+
+        const url =
+            isUpdate
+                ? `${API_BASE_URL}/api/devices/${encodeURIComponent(id)}`
+                : `${API_BASE_URL}/api/devices`;
+
+
+        const method =
+            isUpdate
+                ? "PUT"
+                : "POST";
+
+
+        const data =
+            await apiRequest(
+                url,
                 {
-                    method: "POST",
-
-                    headers: {
-
-                        "Content-Type":
-                            "application/json",
-
-                        ...getAuthHeaders()
-                    },
+                    method:
+                        method,
 
                     body:
                         JSON.stringify(
@@ -557,49 +1255,57 @@ async function registerDevice() {
             );
 
 
-        await handleResponse(
-            response
-        );
+        closeDeviceForm();
 
 
-        const data =
-            await parseJsonResponse(
-                response
+        if (isUpdate) {
+
+            showNotification(
+                "Device updated successfully.",
+                "success"
             );
 
+        } else {
 
-        showMessage(
-            "Device registered successfully.",
-            "success"
-        );
+            showNotification(
+                "Device registered successfully.",
+                "success"
+            );
+        }
 
 
-        displaySingleDevice(
-            data
+        await loadDevices(
+            false
         );
 
 
     } catch (error) {
 
-        showMessage(
-            `Device registration failed: ${error.message}`,
+        showNotification(
+            `Device ${isUpdate ? "update" : "registration"} failed: ${error.message}`,
             "error"
         );
+
+    } finally {
+
+        saveDeviceButton.disabled =
+            false;
     }
 }
 
 
-/*
- * GET:
- *
- * /api/devices
- */
-async function viewDevices() {
+/* ============================================================
+   DEVICE DELETE
+   ============================================================ */
+
+async function deleteDevice(
+    id
+) {
 
     if (!getJwt()) {
 
-        showMessage(
-            "Please login before viewing devices.",
+        showNotification(
+            "Please login before deleting a device.",
             "error"
         );
 
@@ -607,74 +1313,321 @@ async function viewDevices() {
     }
 
 
+    const device =
+        devicesCache.find(
+            item =>
+                String(item.id) ===
+                String(id)
+        );
+
+
+    if (!device) {
+
+        showNotification(
+            "The selected device could not be found.",
+            "error"
+        );
+
+        return;
+    }
+
+
+    const confirmed =
+        confirm(
+            `Delete device "${device.name || device.deviceId}"?\n\nThis action cannot be undone.`
+        );
+
+
+    if (!confirmed) {
+
+        return;
+    }
+
+
     try {
 
-        showMessage(
-            "Loading devices...",
+        showNotification(
+            "Deleting device...",
             "info"
         );
 
 
-        const response =
-            await fetch(
-                `${API_BASE_URL}/api/devices`,
-                {
-                    method: "GET",
+        /*
+         * DELETE:
+         *
+         * /api/devices/{id}
+         */
 
-                    headers: {
-                        ...getAuthHeaders()
-                    }
-                }
-            );
-
-
-        await handleResponse(
-            response
+        await apiRequest(
+            `${API_BASE_URL}/api/devices/${encodeURIComponent(id)}`,
+            {
+                method:
+                    "DELETE"
+            }
         );
 
 
-        const data =
-            await parseJsonResponse(
-                response
-            );
-
-
-        displayDevices(
-            data
-        );
-
-
-        showMessage(
-            "Devices loaded successfully.",
+        showNotification(
+            "Device deleted successfully.",
             "success"
+        );
+
+
+        await loadDevices(
+            false
         );
 
 
     } catch (error) {
 
-        showMessage(
-            `Could not load devices: ${error.message}`,
+        showNotification(
+            `Device deletion failed: ${error.message}`,
             "error"
         );
     }
 }
 
 
-/*
- * Display devices.
- */
-function displayDevices(data) {
+/* ============================================================
+   DEVICE VIEWING
+   ============================================================ */
 
-    const devices =
-        convertToArray(data);
+async function loadDevices(
+    showNotificationMessage = true
+) {
+
+    if (!getJwt()) {
+
+        throw new Error(
+            "Please login before viewing devices."
+        );
+    }
 
 
-    if (devices.length === 0) {
+    if (
+        showNotificationMessage
+    ) {
+
+        showNotification(
+            "Loading devices...",
+            "info"
+        );
+    }
+
+
+    try {
+
+        const data =
+            await apiRequest(
+                `${API_BASE_URL}/api/devices`,
+                {
+                    method:
+                        "GET"
+                }
+            );
+
+
+        devicesCache =
+            convertToArray(
+                data
+            );
+
+
+        displayDevices(
+            devicesCache
+        );
+
+
+        /*
+         * Populate the event device dropdown.
+         */
+
+        populateDeviceDropdown();
+
+
+        if (
+            showNotificationMessage
+        ) {
+
+            showNotification(
+                "Devices loaded successfully.",
+                "success"
+            );
+        }
+
+
+        return devicesCache;
+
+
+    } catch (error) {
 
         devicesContainer.innerHTML = `
+
+            <p class="placeholder">
+                Could not load devices.
+            </p>
+
+        `;
+
+
+        if (
+            showNotificationMessage
+        ) {
+
+            showNotification(
+                `Could not load devices: ${error.message}`,
+                "error"
+            );
+        }
+
+
+        throw error;
+    }
+}
+
+
+/*
+ * Existing public view function.
+ */
+
+async function viewDevices() {
+
+    try {
+
+        await loadDevices(
+            true
+        );
+
+    } catch (error) {
+
+        /*
+         * Error already displayed.
+         */
+    }
+}
+
+
+/* ============================================================
+   DEVICE SEARCH
+   ============================================================ */
+
+function searchDevices() {
+
+    const search =
+        deviceSearch.value
+            .trim()
+            .toLowerCase();
+
+
+    if (!search) {
+
+        displayDevices(
+            devicesCache
+        );
+
+
+        showNotification(
+            "Showing all devices.",
+            "info"
+        );
+
+        return;
+    }
+
+
+    const filtered =
+        devicesCache.filter(
+            device => {
+
+                const values = [
+
+                    device.id,
+
+                    device.deviceId,
+
+                    device.name,
+
+                    device.deviceType,
+
+                    device.manufacturer,
+
+                    device.ipAddress,
+
+                    device.location,
+
+                    device.status
+
+                ];
+
+
+                return values.some(
+                    value =>
+                        String(
+                            value ?? ""
+                        )
+                            .toLowerCase()
+                            .includes(
+                                search
+                            )
+                );
+
+            }
+        );
+
+
+    displayDevices(
+        filtered
+    );
+
+
+    showNotification(
+        `${filtered.length} device(s) matched "${deviceSearch.value.trim()}".`,
+        "info"
+    );
+}
+
+
+function clearDeviceSearch() {
+
+    deviceSearch.value =
+        "";
+
+    displayDevices(
+        devicesCache
+    );
+
+
+    showNotification(
+        "Device search cleared.",
+        "info"
+    );
+}
+
+
+/* ============================================================
+   DISPLAY DEVICES
+   ============================================================ */
+
+function displayDevices(
+    data
+) {
+
+    const devices =
+        Array.isArray(data)
+            ? data
+            : convertToArray(data);
+
+
+    if (
+        devices.length === 0
+    ) {
+
+        devicesContainer.innerHTML = `
+
             <p class="placeholder">
                 No devices found.
             </p>
+
         `;
 
         return;
@@ -705,11 +1658,14 @@ function displayDevices(data) {
 
                     <th>Status</th>
 
+                    <th>Actions</th>
+
                 </tr>
 
             </thead>
 
             <tbody>
+
     `;
 
 
@@ -768,6 +1724,27 @@ function displayDevices(data) {
                         )}
                     </td>
 
+                    <td class="actions-cell">
+
+                        <button
+                            type="button"
+                            class="small-button edit-button"
+                            onclick="openDeviceEditForm('${escapeJs(device.id)}')"
+                        >
+                            Edit
+                        </button>
+
+
+                        <button
+                            type="button"
+                            class="small-button delete-button"
+                            onclick="deleteDevice('${escapeJs(device.id)}')"
+                        >
+                            Delete
+                        </button>
+
+                    </td>
+
                 </tr>
 
             `;
@@ -789,10 +1766,13 @@ function displayDevices(data) {
 }
 
 
-/*
- * Display one device.
- */
-function displaySingleDevice(device) {
+/* ============================================================
+   DISPLAY SINGLE DEVICE
+   ============================================================ */
+
+function displaySingleDevice(
+    device
+) {
 
     if (!device) {
 
@@ -809,189 +1789,21 @@ function displaySingleDevice(device) {
     }
 
 
-    devicesContainer.innerHTML = `
-
-        <table>
-
-            <thead>
-
-                <tr>
-
-                    <th>Property</th>
-
-                    <th>Value</th>
-
-                </tr>
-
-            </thead>
-
-
-            <tbody>
-
-                <tr>
-
-                    <td>Database ID</td>
-
-                    <td>
-                        ${escapeHtml(
-                            device.id ?? ""
-                        )}
-                    </td>
-
-                </tr>
-
-
-                <tr>
-
-                    <td>Device ID</td>
-
-                    <td>
-                        ${escapeHtml(
-                            device.deviceId ?? ""
-                        )}
-                    </td>
-
-                </tr>
-
-
-                <tr>
-
-                    <td>Name</td>
-
-                    <td>
-                        ${escapeHtml(
-                            device.name ?? ""
-                        )}
-                    </td>
-
-                </tr>
-
-
-                <tr>
-
-                    <td>Device Type</td>
-
-                    <td>
-                        ${escapeHtml(
-                            device.deviceType ?? ""
-                        )}
-                    </td>
-
-                </tr>
-
-
-                <tr>
-
-                    <td>Manufacturer</td>
-
-                    <td>
-                        ${escapeHtml(
-                            device.manufacturer ?? ""
-                        )}
-                    </td>
-
-                </tr>
-
-
-                <tr>
-
-                    <td>IP Address</td>
-
-                    <td>
-                        ${escapeHtml(
-                            device.ipAddress ?? ""
-                        )}
-                    </td>
-
-                </tr>
-
-
-                <tr>
-
-                    <td>Location</td>
-
-                    <td>
-                        ${escapeHtml(
-                            device.location ?? ""
-                        )}
-                    </td>
-
-                </tr>
-
-
-                <tr>
-
-                    <td>Status</td>
-
-                    <td>
-                        ${escapeHtml(
-                            device.status ?? ""
-                        )}
-                    </td>
-
-                </tr>
-
-
-                <tr>
-
-                    <td>Created At</td>
-
-                    <td>
-                        ${escapeHtml(
-                            device.createdAt ?? ""
-                        )}
-                    </td>
-
-                </tr>
-
-
-                <tr>
-
-                    <td>Updated At</td>
-
-                    <td>
-                        ${escapeHtml(
-                            device.updatedAt ?? ""
-                        )}
-                    </td>
-
-                </tr>
-
-            </tbody>
-
-        </table>
-
-    `;
+    displayDevices(
+        [device]
+    );
 }
 
 
 /* ============================================================
-   SECURITY EVENTS
+   EVENT FORM
    ============================================================ */
 
-
-/*
- * Create security event.
- *
- * POST:
- *
- * /api/events
- *
- *
- * IMPORTANT:
- *
- * SecurityEvent.java currently uses:
- *
- *     Long deviceId
- *
- * Therefore we first retrieve the device and
- * use its database ID.
- */
-async function createSecurityEvent() {
+async function openEventCreateForm() {
 
     if (!getJwt()) {
 
-        showMessage(
+        showNotification(
             "Please login before creating a security event.",
             "error"
         );
@@ -1002,154 +1814,400 @@ async function createSecurityEvent() {
 
     try {
 
-        showMessage(
-            "Finding a device for the demonstration event...",
-            "info"
-        );
-
-
-        /*
-         * Get existing devices.
-         */
-        const deviceResponse =
-            await fetch(
-                `${API_BASE_URL}/api/devices`,
-                {
-                    method: "GET",
-
-                    headers: {
-                        ...getAuthHeaders()
-                    }
-                }
-            );
-
-
-        await handleResponse(
-            deviceResponse
-        );
-
-
-        const deviceData =
-            await parseJsonResponse(
-                deviceResponse
-            );
-
-
-        const devices =
-            convertToArray(
-                deviceData
-            );
-
-
-        if (devices.length === 0) {
-
-            throw new Error(
-                "No devices exist. Click Register Device first."
-            );
-        }
-
-
-        /*
-         * Prefer IOT-001.
-         *
-         * Otherwise use the first device.
-         */
-        const device =
-            devices.find(
-                item =>
-                    item.deviceId === "IOT-001"
-            ) || devices[0];
-
-
-        /*
-         * Device.java has:
-         *
-         * Long id
-         */
         if (
-            device.id === null ||
-            device.id === undefined
+            devicesCache.length === 0
         ) {
 
-            throw new Error(
-                "The selected device does not have a database ID."
+            await loadDevices(
+                false
             );
         }
-
-
-        const numericDeviceId =
-            Number(device.id);
 
 
         if (
-            Number.isNaN(
-                numericDeviceId
-            )
+            devicesCache.length === 0
         ) {
 
             throw new Error(
-                "The device database ID is not numeric."
+                "No devices exist. Register a device before creating an event."
             );
         }
 
 
-        /*
-         * SecurityEvent.java requires:
-         *
-         * deviceId
-         * eventType
-         * severity
-         * description
-         *
-         *
-         * eventId is generated by @PrePersist.
-         *
-         * timestamp is generated by @PrePersist.
-         *
-         * status is generated by @PrePersist.
-         */
-        const securityEvent = {
-
-            deviceId:
-                numericDeviceId,
-
-            eventType:
-                "UNAUTHORIZED_ACCESS",
-
-            severity:
-                "HIGH",
-
-            description:
-                `Unauthorized access attempt detected on IoT device ${device.deviceId}`,
-
-            sourceIp:
-                device.ipAddress ||
-                "192.168.1.50"
-        };
+        clearEventForm();
 
 
-        showMessage(
-            `Creating security event for ${device.deviceId}...`,
-            "info"
+        eventFormTitle.textContent =
+            "Create Security Event";
+
+
+        saveEventButton.textContent =
+            "Create Event";
+
+
+        eventFormContainer.classList.remove(
+            "hidden"
         );
 
 
+        populateDeviceDropdown();
+
+
+        eventFormContainer.scrollIntoView({
+            behavior: "smooth",
+            block: "center"
+        });
+
+
+    } catch (error) {
+
+        showNotification(
+            error.message,
+            "error"
+        );
+    }
+}
+
+
+function openEventEditForm(
+    id
+) {
+
+    const event =
+        eventsCache.find(
+            item =>
+                String(
+                    item.id
+                ) ===
+                String(id)
+        );
+
+
+    if (!event) {
+
+        showNotification(
+            "The selected event could not be found.",
+            "error"
+        );
+
+        return;
+    }
+
+
+    eventFormTitle.textContent =
+        "Edit Security Event";
+
+
+    saveEventButton.textContent =
+        "Update Event";
+
+
+    eventDatabaseId.value =
+        event.id ?? "";
+
+
+    eventIdInput.value =
+        event.eventId ?? "";
+
+
+    populateDeviceDropdown();
+
+
+    /*
+     * deviceId may be the database ID.
+     */
+
+    eventDeviceInput.value =
+        event.deviceId ?? "";
+
+
+    eventTypeInput.value =
+        event.eventType ?? "";
+
+
+    eventSeverityInput.value =
+        event.severity ?? "";
+
+
+    eventSourceIpInput.value =
+        event.sourceIp ?? "";
+
+
+    eventDescriptionInput.value =
+        event.description ?? "";
+
+
+    eventStatusInput.value =
+        event.status ?? "OPEN";
+
+
+    eventFormContainer.classList.remove(
+        "hidden"
+    );
+
+
+    eventFormContainer.scrollIntoView({
+        behavior: "smooth",
+        block: "center"
+    });
+}
+
+
+function clearEventForm() {
+
+    eventDatabaseId.value =
+        "";
+
+    eventIdInput.value =
+        "";
+
+    eventDeviceInput.value =
+        "";
+
+    eventTypeInput.value =
+        "";
+
+    eventSeverityInput.value =
+        "";
+
+    eventSourceIpInput.value =
+        "";
+
+    eventDescriptionInput.value =
+        "";
+
+    eventStatusInput.value =
+        "OPEN";
+}
+
+
+function closeEventForm() {
+
+    eventFormContainer.classList.add(
+        "hidden"
+    );
+
+    clearEventForm();
+}
+
+
+/* ============================================================
+   DEVICE DROPDOWN
+   ============================================================ */
+
+function populateDeviceDropdown() {
+
+    eventDeviceInput.innerHTML = `
+
+        <option value="">
+            Select a device
+        </option>
+
+    `;
+
+
+    devicesCache.forEach(
+        device => {
+
+            if (
+                device.id === null ||
+                device.id === undefined
+            ) {
+
+                return;
+            }
+
+
+            const option =
+                document.createElement(
+                    "option"
+                );
+
+
+            option.value =
+                device.id;
+
+
+            option.textContent =
+                `${device.deviceId || "Unknown"} - ${device.name || "Unnamed device"}`;
+
+
+            eventDeviceInput.appendChild(
+                option
+            );
+        }
+    );
+}
+
+
+/* ============================================================
+   EVENT CREATE / UPDATE
+   ============================================================ */
+
+async function saveEvent() {
+
+    if (!getJwt()) {
+
+        showNotification(
+            "Please login before saving a security event.",
+            "error"
+        );
+
+        return;
+    }
+
+
+    const selectedDeviceId =
+        eventDeviceInput.value;
+
+
+    const eventType =
+        eventTypeInput.value;
+
+
+    const severity =
+        eventSeverityInput.value;
+
+
+    const description =
+        eventDescriptionInput.value.trim();
+
+
+    if (
+        !selectedDeviceId ||
+        !eventType ||
+        !severity ||
+        !description
+    ) {
+
+        showNotification(
+            "Device, event type, severity and description are required.",
+            "error"
+        );
+
+        return;
+    }
+
+
+    const numericDeviceId =
+        Number(
+            selectedDeviceId
+        );
+
+
+    if (
+        Number.isNaN(
+            numericDeviceId
+        )
+    ) {
+
+        showNotification(
+            "The selected device database ID is not numeric.",
+            "error"
+        );
+
+        return;
+    }
+
+
+    const isUpdate =
+        Boolean(
+            eventDatabaseId.value
+        );
+
+
+    /*
+     * IMPORTANT:
+     *
+     * We intentionally do NOT send generated fields such as
+     * timestamp unless the backend specifically expects them.
+     *
+     * We also do not send eventId on CREATE because your
+     * SecurityEvent entity generates it.
+     */
+
+    const securityEvent = {
+
+        deviceId:
+            numericDeviceId,
+
+        eventType:
+            eventType,
+
+        severity:
+            severity,
+
+        description:
+            description,
+
+        sourceIp:
+            eventSourceIpInput.value.trim()
+
+    };
+
+
+    /*
+     * For UPDATE we only add status if the user selected it.
+     */
+
+    if (
+        isUpdate &&
+        eventStatusInput.value
+    ) {
+
+        securityEvent.status =
+            eventStatusInput.value;
+    }
+
+
+    try {
+
+        saveEventButton.disabled =
+            true;
+
+
+        if (isUpdate) {
+
+            showNotification(
+                "Updating security event...",
+                "info"
+            );
+
+        } else {
+
+            showNotification(
+                "Creating security event...",
+                "info"
+            );
+        }
+
+
+        const id =
+            eventDatabaseId.value;
+
+
+        const url =
+            isUpdate
+                ? `${API_BASE_URL}/api/events/${encodeURIComponent(id)}`
+                : `${API_BASE_URL}/api/events`;
+
+
+        const method =
+            isUpdate
+                ? "PUT"
+                : "POST";
+
+
         /*
-         * POST /api/events
+         * This is the actual request.
          */
-        const response =
-            await fetch(
-                `${API_BASE_URL}/api/events`,
+
+        const data =
+            await apiRequest(
+                url,
                 {
-                    method: "POST",
-
-                    headers: {
-
-                        "Content-Type":
-                            "application/json",
-
-                        ...getAuthHeaders()
-                    },
+                    method:
+                        method,
 
                     body:
                         JSON.stringify(
@@ -1159,49 +2217,78 @@ async function createSecurityEvent() {
             );
 
 
-        await handleResponse(
-            response
-        );
+        closeEventForm();
 
 
-        const data =
-            await parseJsonResponse(
-                response
+        if (isUpdate) {
+
+            showNotification(
+                "Security event updated successfully.",
+                "success"
             );
 
+        } else {
 
-        showMessage(
-            "Security event created successfully.",
-            "success"
-        );
+            showNotification(
+                "Security event created successfully.",
+                "success"
+            );
+        }
 
 
-        displaySingleEvent(
-            data
+        await loadSecurityEvents(
+            false
         );
 
 
     } catch (error) {
 
-        showMessage(
-            `Security event creation failed: ${error.message}`,
-            "error"
-        );
+        /*
+         * This is particularly useful for the current
+         * HTTP 503 problem.
+         */
+
+        if (
+            !isUpdate &&
+            error.message.toLowerCase()
+                .includes(
+                    "service unavailable"
+                )
+        ) {
+
+            showNotification(
+                "Event Service is unavailable through the API Gateway. Check that the Event Service is running and registered with Eureka.",
+                "error"
+            );
+
+        } else {
+
+            showNotification(
+                `Security event ${isUpdate ? "update" : "creation"} failed: ${error.message}`,
+                "error"
+            );
+        }
+
+    } finally {
+
+        saveEventButton.disabled =
+            false;
     }
 }
 
 
-/*
- * GET:
- *
- * /api/events
- */
-async function viewSecurityEvents() {
+/* ============================================================
+   EVENT DELETE
+   ============================================================ */
+
+async function deleteEvent(
+    id
+) {
 
     if (!getJwt()) {
 
-        showMessage(
-            "Please login before viewing security events.",
+        showNotification(
+            "Please login before deleting an event.",
             "error"
         );
 
@@ -1209,69 +2296,311 @@ async function viewSecurityEvents() {
     }
 
 
+    const event =
+        eventsCache.find(
+            item =>
+                String(
+                    item.id
+                ) ===
+                String(id)
+        );
+
+
+    if (!event) {
+
+        showNotification(
+            "The selected event could not be found.",
+            "error"
+        );
+
+        return;
+    }
+
+
+    const eventName =
+        event.eventId ||
+        `Database ID ${event.id}`;
+
+
+    const confirmed =
+        confirm(
+            `Delete security event "${eventName}"?\n\nThis action cannot be undone.`
+        );
+
+
+    if (!confirmed) {
+
+        return;
+    }
+
+
     try {
 
-        showMessage(
-            "Loading security events...",
+        showNotification(
+            "Deleting security event...",
             "info"
         );
 
 
-        const response =
-            await fetch(
-                `${API_BASE_URL}/api/events`,
-                {
-                    method: "GET",
-
-                    headers: {
-                        ...getAuthHeaders()
-                    }
-                }
-            );
-
-
-        await handleResponse(
-            response
+        await apiRequest(
+            `${API_BASE_URL}/api/events/${encodeURIComponent(id)}`,
+            {
+                method:
+                    "DELETE"
+            }
         );
 
 
-        const data =
-            await parseJsonResponse(
-                response
-            );
-
-
-        displaySecurityEvents(
-            data
-        );
-
-
-        showMessage(
-            "Security events loaded successfully.",
+        showNotification(
+            "Security event deleted successfully.",
             "success"
+        );
+
+
+        await loadSecurityEvents(
+            false
         );
 
 
     } catch (error) {
 
-        showMessage(
-            `Could not load security events: ${error.message}`,
+        showNotification(
+            `Security event deletion failed: ${error.message}`,
             "error"
         );
     }
 }
 
 
+/* ============================================================
+   EVENT VIEWING
+   ============================================================ */
+
+async function loadSecurityEvents(
+    showNotificationMessage = true
+) {
+
+    if (!getJwt()) {
+
+        throw new Error(
+            "Please login before viewing security events."
+        );
+    }
+
+
+    if (
+        showNotificationMessage
+    ) {
+
+        showNotification(
+            "Loading security events...",
+            "info"
+        );
+    }
+
+
+    try {
+
+        const data =
+            await apiRequest(
+                `${API_BASE_URL}/api/events`,
+                {
+                    method:
+                        "GET"
+                }
+            );
+
+
+        eventsCache =
+            convertToArray(
+                data
+            );
+
+
+        displaySecurityEvents(
+            eventsCache
+        );
+
+
+        if (
+            showNotificationMessage
+        ) {
+
+            showNotification(
+                "Security events loaded successfully.",
+                "success"
+            );
+        }
+
+
+        return eventsCache;
+
+
+    } catch (error) {
+
+        eventsContainer.innerHTML = `
+
+            <p class="placeholder">
+                Security events could not be loaded.
+            </p>
+
+        `;
+
+
+        if (
+            showNotificationMessage
+        ) {
+
+            showNotification(
+                `Could not load security events: ${error.message}`,
+                "error"
+            );
+        }
+
+
+        throw error;
+    }
+}
+
+
 /*
- * Display security events.
+ * Existing public function.
  */
-function displaySecurityEvents(data) {
+
+async function viewSecurityEvents() {
+
+    try {
+
+        await loadSecurityEvents(
+            true
+        );
+
+    } catch (error) {
+
+        /*
+         * Error already displayed.
+         */
+    }
+}
+
+
+/* ============================================================
+   EVENT SEARCH
+   ============================================================ */
+
+function searchEvents() {
+
+    const search =
+        eventSearch.value
+            .trim()
+            .toLowerCase();
+
+
+    if (!search) {
+
+        displaySecurityEvents(
+            eventsCache
+        );
+
+
+        showNotification(
+            "Event search cleared. Showing all events.",
+            "info"
+        );
+
+        return;
+    }
+
+
+    const filtered =
+        eventsCache.filter(
+            event => {
+
+                const values = [
+
+                    event.id,
+
+                    event.eventId,
+
+                    event.deviceId,
+
+                    event.eventType,
+
+                    event.severity,
+
+                    event.status,
+
+                    event.sourceIp,
+
+                    event.timestamp,
+
+                    event.description
+
+                ];
+
+
+                return values.some(
+                    value =>
+                        String(
+                            value ?? ""
+                        )
+                            .toLowerCase()
+                            .includes(
+                                search
+                            )
+                );
+
+            }
+        );
+
+
+    displaySecurityEvents(
+        filtered
+    );
+
+
+    showNotification(
+        `${filtered.length} event(s) matched "${eventSearch.value.trim()}".`,
+        "info"
+    );
+}
+
+
+function clearEventSearch() {
+
+    eventSearch.value =
+        "";
+
+
+    displaySecurityEvents(
+        eventsCache
+    );
+
+
+    showNotification(
+        "Event search cleared.",
+        "info"
+    );
+}
+
+
+/* ============================================================
+   DISPLAY EVENTS
+   ============================================================ */
+
+function displaySecurityEvents(
+    data
+) {
 
     const events =
-        convertToArray(data);
+        Array.isArray(data)
+            ? data
+            : convertToArray(data);
 
 
-    if (events.length === 0) {
+    if (
+        events.length === 0
+    ) {
 
         eventsContainer.innerHTML = `
 
@@ -1311,6 +2640,8 @@ function displaySecurityEvents(data) {
 
                     <th>Description</th>
 
+                    <th>Actions</th>
+
                 </tr>
 
             </thead>
@@ -1326,7 +2657,8 @@ function displaySecurityEvents(data) {
             const severity =
                 String(
                     event.severity ?? ""
-                ).toUpperCase();
+                )
+                    .toUpperCase();
 
 
             let severityClass =
@@ -1334,14 +2666,24 @@ function displaySecurityEvents(data) {
 
 
             if (
-                severity === "HIGH"
+                severity ===
+                "CRITICAL"
+            ) {
+
+                severityClass =
+                    "badge-critical";
+
+            } else if (
+                severity ===
+                "HIGH"
             ) {
 
                 severityClass =
                     "badge-high";
 
             } else if (
-                severity === "MEDIUM"
+                severity ===
+                "MEDIUM"
             ) {
 
                 severityClass =
@@ -1413,6 +2755,27 @@ function displaySecurityEvents(data) {
                         )}
                     </td>
 
+                    <td class="actions-cell">
+
+                        <button
+                            type="button"
+                            class="small-button edit-button"
+                            onclick="openEventEditForm('${escapeJs(event.id)}')"
+                        >
+                            Edit
+                        </button>
+
+
+                        <button
+                            type="button"
+                            class="small-button delete-button"
+                            onclick="deleteEvent('${escapeJs(event.id)}')"
+                        >
+                            Delete
+                        </button>
+
+                    </td>
+
                 </tr>
 
             `;
@@ -1434,10 +2797,13 @@ function displaySecurityEvents(data) {
 }
 
 
-/*
- * Display one security event.
- */
-function displaySingleEvent(event) {
+/* ============================================================
+   DISPLAY SINGLE EVENT
+   ============================================================ */
+
+function displaySingleEvent(
+    event
+) {
 
     if (!event) {
 
@@ -1454,200 +2820,113 @@ function displaySingleEvent(event) {
     }
 
 
-    eventsContainer.innerHTML = `
-
-        <table>
-
-            <thead>
-
-                <tr>
-
-                    <th>Property</th>
-
-                    <th>Value</th>
-
-                </tr>
-
-            </thead>
-
-
-            <tbody>
-
-                <tr>
-
-                    <td>Database ID</td>
-
-                    <td>
-                        ${escapeHtml(
-                            event.id ?? ""
-                        )}
-                    </td>
-
-                </tr>
-
-
-                <tr>
-
-                    <td>Event ID</td>
-
-                    <td>
-                        ${escapeHtml(
-                            event.eventId ?? ""
-                        )}
-                    </td>
-
-                </tr>
-
-
-                <tr>
-
-                    <td>Device ID</td>
-
-                    <td>
-                        ${escapeHtml(
-                            event.deviceId ?? ""
-                        )}
-                    </td>
-
-                </tr>
-
-
-                <tr>
-
-                    <td>Event Type</td>
-
-                    <td>
-                        ${escapeHtml(
-                            event.eventType ?? ""
-                        )}
-                    </td>
-
-                </tr>
-
-
-                <tr>
-
-                    <td>Severity</td>
-
-                    <td>
-                        ${escapeHtml(
-                            event.severity ?? ""
-                        )}
-                    </td>
-
-                </tr>
-
-
-                <tr>
-
-                    <td>Description</td>
-
-                    <td>
-                        ${escapeHtml(
-                            event.description ?? ""
-                        )}
-                    </td>
-
-                </tr>
-
-
-                <tr>
-
-                    <td>Source IP</td>
-
-                    <td>
-                        ${escapeHtml(
-                            event.sourceIp ?? ""
-                        )}
-                    </td>
-
-                </tr>
-
-
-                <tr>
-
-                    <td>Timestamp</td>
-
-                    <td>
-                        ${escapeHtml(
-                            event.timestamp ?? ""
-                        )}
-                    </td>
-
-                </tr>
-
-
-                <tr>
-
-                    <td>Status</td>
-
-                    <td>
-                        ${escapeHtml(
-                            event.status ?? ""
-                        )}
-                    </td>
-
-                </tr>
-
-            </tbody>
-
-        </table>
-
-    `;
+    displaySecurityEvents(
+        [event]
+    );
 }
 
 
 /* ============================================================
-   GATEWAY HEALTH
+   JAVASCRIPT ESCAPING
    ============================================================ */
 
+function escapeJs(
+    value
+) {
 
-/*
- * Test:
- *
- * GET http://localhost:8090/actuator/health
- */
-async function testGateway() {
-
-    try {
-
-        const response =
-            await fetch(
-                `${API_BASE_URL}/actuator/health`
-            );
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                `HTTP ${response.status}`
-            );
-        }
-
-
-        gatewayStatus.textContent =
-            "Online";
-
-
-        gatewayStatus.className =
-            "status success";
-
-
-    } catch (error) {
-
-        gatewayStatus.textContent =
-            "Offline";
-
-
-        gatewayStatus.className =
-            "status error";
-    }
+    return String(
+        value ?? ""
+    )
+        .replace(
+            /\\/g,
+            "\\\\"
+        )
+        .replace(
+            /'/g,
+            "\\'"
+        )
+        .replace(
+            /"/g,
+            '\\"'
+        );
 }
 
 
 /* ============================================================
-   BUTTON EVENTS
+   EVENT BUTTONS
    ============================================================ */
+
+registerDeviceButton.addEventListener(
+    "click",
+    openDeviceCreateForm
+);
+
+
+viewDevicesButton.addEventListener(
+    "click",
+    viewDevices
+);
+
+
+searchDevicesButton.addEventListener(
+    "click",
+    searchDevices
+);
+
+
+clearDeviceSearchButton.addEventListener(
+    "click",
+    clearDeviceSearch
+);
+
+
+saveDeviceButton.addEventListener(
+    "click",
+    saveDevice
+);
+
+
+cancelDeviceButton.addEventListener(
+    "click",
+    closeDeviceForm
+);
+
+
+createEventButton.addEventListener(
+    "click",
+    openEventCreateForm
+);
+
+
+viewEventsButton.addEventListener(
+    "click",
+    viewSecurityEvents
+);
+
+
+searchEventsButton.addEventListener(
+    "click",
+    searchEvents
+);
+
+
+clearEventSearchButton.addEventListener(
+    "click",
+    clearEventSearch
+);
+
+
+saveEventButton.addEventListener(
+    "click",
+    saveEvent
+);
+
+
+cancelEventButton.addEventListener(
+    "click",
+    closeEventForm
+);
+
 
 loginButton.addEventListener(
     "click",
@@ -1661,27 +2940,69 @@ logoutButton.addEventListener(
 );
 
 
-registerDeviceButton.addEventListener(
+closeNotificationButton.addEventListener(
     "click",
-    registerDevice
+    hideNotification
 );
 
 
-viewDevicesButton.addEventListener(
-    "click",
-    viewDevices
+/* ============================================================
+   ENTER KEY SUPPORT
+   ============================================================ */
+
+usernameInput.addEventListener(
+    "keydown",
+    event => {
+
+        if (
+            event.key === "Enter"
+        ) {
+
+            login();
+        }
+    }
 );
 
 
-createEventButton.addEventListener(
-    "click",
-    createSecurityEvent
+passwordInput.addEventListener(
+    "keydown",
+    event => {
+
+        if (
+            event.key === "Enter"
+        ) {
+
+            login();
+        }
+    }
 );
 
 
-viewEventsButton.addEventListener(
-    "click",
-    viewSecurityEvents
+deviceSearch.addEventListener(
+    "keydown",
+    event => {
+
+        if (
+            event.key === "Enter"
+        ) {
+
+            searchDevices();
+        }
+    }
+);
+
+
+eventSearch.addEventListener(
+    "keydown",
+    event => {
+
+        if (
+            event.key === "Enter"
+        ) {
+
+            searchEvents();
+        }
+    }
 );
 
 
@@ -1695,7 +3016,28 @@ document.addEventListener(
 
         updateAuthenticationStatus();
 
-        testGateway();
+
+        /*
+         * If a JWT already exists from a previous session,
+         * automatically restore the dashboard.
+         */
+
+        if (
+            getJwt()
+        ) {
+
+            loadDashboard()
+                .catch(
+                    error => {
+
+                        showNotification(
+                            `Dashboard loading failed: ${error.message}`,
+                            "error"
+                        );
+
+                    }
+                );
+        }
 
     }
 );

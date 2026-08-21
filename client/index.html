@@ -42,6 +42,34 @@
 
 
     <!-- =====================================================
+         ACTION / NOTIFICATION AREA
+         ===================================================== -->
+
+    <div
+        id="notification"
+        class="notification hidden"
+    >
+
+        <span id="notificationIcon">
+            ●
+        </span>
+
+        <span id="notificationText">
+            Ready
+        </span>
+
+        <button
+            type="button"
+            id="closeNotificationButton"
+            class="notification-close"
+        >
+            ×
+        </button>
+
+    </div>
+
+
+    <!-- =====================================================
          AUTHENTICATION
          ===================================================== -->
 
@@ -114,9 +142,64 @@
 
     <section class="card">
 
-        <h2>
-            Device Management
-        </h2>
+        <div class="section-heading">
+
+            <div>
+
+                <h2>
+                    Device Management
+                </h2>
+
+                <p class="section-description">
+                    Create, view, search, edit and delete IoT devices.
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <!-- DEVICE SEARCH -->
+
+        <div class="search-panel">
+
+            <div class="form-group">
+
+                <label for="deviceSearch">
+                    Search Devices
+                </label>
+
+                <input
+                    type="text"
+                    id="deviceSearch"
+                    placeholder="Search by device ID, name, type, IP address or location"
+                >
+
+            </div>
+
+
+            <div class="button-row">
+
+                <button
+                    type="button"
+                    id="searchDevicesButton"
+                    class="secondary"
+                >
+                    Search Devices
+                </button>
+
+
+                <button
+                    type="button"
+                    id="clearDeviceSearchButton"
+                    class="secondary"
+                >
+                    Clear Search
+                </button>
+
+            </div>
+
+        </div>
 
 
         <div class="button-row">
@@ -135,8 +218,171 @@
                 id="viewDevicesButton"
                 class="secondary"
             >
-                View Devices
+                Refresh Devices
             </button>
+
+        </div>
+
+
+        <div
+            id="deviceFormContainer"
+            class="inline-form hidden"
+        >
+
+            <h3 id="deviceFormTitle">
+                Register Device
+            </h3>
+
+
+            <input
+                type="hidden"
+                id="deviceDatabaseId"
+            >
+
+
+            <div class="form-grid">
+
+                <div class="form-group">
+
+                    <label for="deviceIdInput">
+                        Device ID *
+                    </label>
+
+                    <input
+                        type="text"
+                        id="deviceIdInput"
+                        placeholder="Example: IOT-001"
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="deviceNameInput">
+                        Name *
+                    </label>
+
+                    <input
+                        type="text"
+                        id="deviceNameInput"
+                        placeholder="Example: Security Camera 001"
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="deviceTypeInput">
+                        Device Type *
+                    </label>
+
+                    <input
+                        type="text"
+                        id="deviceTypeInput"
+                        placeholder="Example: CAMERA"
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="deviceManufacturerInput">
+                        Manufacturer
+                    </label>
+
+                    <input
+                        type="text"
+                        id="deviceManufacturerInput"
+                        placeholder="Example: Hikvision"
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="deviceIpInput">
+                        IP Address
+                    </label>
+
+                    <input
+                        type="text"
+                        id="deviceIpInput"
+                        placeholder="Example: 192.168.1.101"
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="deviceLocationInput">
+                        Location
+                    </label>
+
+                    <input
+                        type="text"
+                        id="deviceLocationInput"
+                        placeholder="Example: Main Entrance"
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="deviceStatusInput">
+                        Status
+                    </label>
+
+                    <select id="deviceStatusInput">
+
+                        <option value="ACTIVE">
+                            ACTIVE
+                        </option>
+
+                        <option value="INACTIVE">
+                            INACTIVE
+                        </option>
+
+                        <option value="OFFLINE">
+                            OFFLINE
+                        </option>
+
+                        <option value="MAINTENANCE">
+                            MAINTENANCE
+                        </option>
+
+                    </select>
+
+                </div>
+
+            </div>
+
+
+            <div class="button-row">
+
+                <button
+                    type="button"
+                    id="saveDeviceButton"
+                    class="primary"
+                >
+                    Save Device
+                </button>
+
+
+                <button
+                    type="button"
+                    id="cancelDeviceButton"
+                    class="secondary"
+                >
+                    Cancel
+                </button>
+
+            </div>
 
         </div>
 
@@ -147,7 +393,7 @@
         >
 
             <p class="placeholder">
-                Device information will appear here.
+                Login to load devices.
             </p>
 
         </div>
@@ -161,9 +407,64 @@
 
     <section class="card">
 
-        <h2>
-            Security Events
-        </h2>
+        <div class="section-heading">
+
+            <div>
+
+                <h2>
+                    Security Events
+                </h2>
+
+                <p class="section-description">
+                    Create, view, search, edit and delete security events.
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <!-- EVENT SEARCH -->
+
+        <div class="search-panel">
+
+            <div class="form-group">
+
+                <label for="eventSearch">
+                    Search Security Events
+                </label>
+
+                <input
+                    type="text"
+                    id="eventSearch"
+                    placeholder="Search by event ID, type, severity, device ID, status or description"
+                >
+
+            </div>
+
+
+            <div class="button-row">
+
+                <button
+                    type="button"
+                    id="searchEventsButton"
+                    class="secondary"
+                >
+                    Search Events
+                </button>
+
+
+                <button
+                    type="button"
+                    id="clearEventSearchButton"
+                    class="secondary"
+                >
+                    Clear Search
+                </button>
+
+            </div>
+
+        </div>
 
 
         <div class="button-row">
@@ -182,8 +483,234 @@
                 id="viewEventsButton"
                 class="secondary"
             >
-                View Security Events
+                Refresh Security Events
             </button>
+
+        </div>
+
+
+        <!-- EVENT FORM -->
+
+        <div
+            id="eventFormContainer"
+            class="inline-form hidden"
+        >
+
+            <h3 id="eventFormTitle">
+                Create Security Event
+            </h3>
+
+
+            <input
+                type="hidden"
+                id="eventDatabaseId"
+            >
+
+
+            <input
+                type="hidden"
+                id="eventIdInput"
+            >
+
+
+            <div class="form-grid">
+
+                <div class="form-group">
+
+                    <label for="eventDeviceInput">
+                        Device *
+                    </label>
+
+                    <select id="eventDeviceInput">
+
+                        <option value="">
+                            Select a device
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="eventTypeInput">
+                        Event Type *
+                    </label>
+
+                    <select id="eventTypeInput">
+
+                        <option value="">
+                            Select event type
+                        </option>
+
+                        <option value="UNAUTHORIZED_ACCESS">
+                            UNAUTHORIZED_ACCESS
+                        </option>
+
+                        <option value="FAILED_LOGIN">
+                            FAILED_LOGIN
+                        </option>
+
+                        <option value="BRUTE_FORCE">
+                            BRUTE_FORCE
+                        </option>
+
+                        <option value="MALWARE_DETECTED">
+                            MALWARE_DETECTED
+                        </option>
+
+                        <option value="SUSPICIOUS_NETWORK_ACTIVITY">
+                            SUSPICIOUS_NETWORK_ACTIVITY
+                        </option>
+
+                        <option value="PORT_SCAN">
+                            PORT_SCAN
+                        </option>
+
+                        <option value="DEVICE_OFFLINE">
+                            DEVICE_OFFLINE
+                        </option>
+
+                        <option value="DEVICE_TAMPERING">
+                            DEVICE_TAMPERING
+                        </option>
+
+                        <option value="DATA_EXFILTRATION">
+                            DATA_EXFILTRATION
+                        </option>
+
+                        <option value="ANOMALOUS_BEHAVIOR">
+                            ANOMALOUS_BEHAVIOR
+                        </option>
+
+                        <option value="POLICY_VIOLATION">
+                            POLICY_VIOLATION
+                        </option>
+
+                        <option value="OTHER">
+                            OTHER
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="eventSeverityInput">
+                        Severity *
+                    </label>
+
+                    <select id="eventSeverityInput">
+
+                        <option value="">
+                            Select severity
+                        </option>
+
+                        <option value="LOW">
+                            LOW
+                        </option>
+
+                        <option value="MEDIUM">
+                            MEDIUM
+                        </option>
+
+                        <option value="HIGH">
+                            HIGH
+                        </option>
+
+                        <option value="CRITICAL">
+                            CRITICAL
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="eventSourceIpInput">
+                        Source IP
+                    </label>
+
+                    <input
+                        type="text"
+                        id="eventSourceIpInput"
+                        placeholder="Example: 192.168.1.50"
+                    >
+
+                </div>
+
+
+                <div class="form-group full-width">
+
+                    <label for="eventDescriptionInput">
+                        Description *
+                    </label>
+
+                    <textarea
+                        id="eventDescriptionInput"
+                        rows="4"
+                        placeholder="Describe the security event"
+                    ></textarea>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="eventStatusInput">
+                        Status
+                    </label>
+
+                    <select id="eventStatusInput">
+
+                        <option value="OPEN">
+                            OPEN
+                        </option>
+
+                        <option value="INVESTIGATING">
+                            INVESTIGATING
+                        </option>
+
+                        <option value="RESOLVED">
+                            RESOLVED
+                        </option>
+
+                        <option value="CLOSED">
+                            CLOSED
+                        </option>
+
+                    </select>
+
+                </div>
+
+            </div>
+
+
+            <div class="button-row">
+
+                <button
+                    type="button"
+                    id="saveEventButton"
+                    class="danger"
+                >
+                    Save Event
+                </button>
+
+
+                <button
+                    type="button"
+                    id="cancelEventButton"
+                    class="secondary"
+                >
+                    Cancel
+                </button>
+
+            </div>
 
         </div>
 
@@ -194,7 +721,7 @@
         >
 
             <p class="placeholder">
-                Security event information will appear here.
+                Login to load security events.
             </p>
 
         </div>
@@ -209,24 +736,8 @@
     <section class="card status-card">
 
         <h2>
-            System Status
+            Session Status
         </h2>
-
-
-        <div class="status-row">
-
-            <strong>
-                Gateway:
-            </strong>
-
-            <span
-                id="gatewayStatus"
-                class="status unknown"
-            >
-                Not tested
-            </span>
-
-        </div>
 
 
         <div class="status-row">
@@ -264,7 +775,7 @@
 
 
     <!-- =====================================================
-         MESSAGE AREA
+         OLD MESSAGE AREA
          ===================================================== -->
 
     <section
