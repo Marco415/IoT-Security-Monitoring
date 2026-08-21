@@ -120,20 +120,42 @@ public class DeviceService {
         Device existingDevice =
                 getDevice(id);
 
+        // Update all editable device fields
+        existingDevice.setDeviceId(
+                device.getDeviceId()
+        );
+
         existingDevice.setName(
                 device.getName()
         );
 
-        /*
-         * Keep any other fields that your existing
-         * Device entity supports here.
-         *
-         * For example:
-         *
-         * existingDevice.setType(device.getType());
-         * existingDevice.setLocation(device.getLocation());
-         * existingDevice.setStatus(device.getStatus());
-         */
+        existingDevice.setDeviceType(
+                device.getDeviceType()
+        );
+
+        existingDevice.setManufacturer(
+                device.getManufacturer()
+        );
+
+        existingDevice.setIpAddress(
+                device.getIpAddress()
+        );
+
+        existingDevice.setLocation(
+                device.getLocation()
+        );
+
+        existingDevice.setStatus(
+                device.getStatus()
+        );
+
+        // Do NOT update:
+        // existingDevice.setId(...)
+        // existingDevice.setCreatedAt(...)
+        // existingDevice.setUpdatedAt(...)
+        //
+        // JPA manages the ID and timestamps.
+        // @PreUpdate automatically updates updatedAt.
 
         Device updatedDevice =
                 deviceRepository.save(
@@ -141,8 +163,11 @@ public class DeviceService {
                 );
 
         log.info(
-                "IoT device updated deviceId={}",
-                id
+                "IoT device updated deviceId={} name={} deviceType={} status={}",
+                updatedDevice.getId(),
+                updatedDevice.getName(),
+                updatedDevice.getDeviceType(),
+                updatedDevice.getStatus()
         );
 
         return updatedDevice;

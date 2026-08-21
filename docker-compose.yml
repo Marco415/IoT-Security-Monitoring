@@ -285,6 +285,9 @@ services:
       retries: 5
       start_period: 30s
 
+    volumes:
+      - ./logs:/logs
+
 
   # =========================================================
   # EVENT SERVICE
@@ -343,6 +346,9 @@ services:
       retries: 5
       start_period: 30s
 
+    volumes:
+      - ./logs:/logs
+
 
   # =========================================================
   # AUTH SERVICE
@@ -395,6 +401,9 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+
+    volumes:
+      - ./logs:/logs
 
 
   # =========================================================
@@ -452,6 +461,9 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+
+    volumes:
+      - ./logs:/logs
 
 
 # =========================================================

@@ -79,6 +79,30 @@ public class SecurityEventController {
         );
     }
 
+    @PutMapping("/{eventId}")
+    public ResponseEntity<SecurityEvent> updateEvent(
+            @PathVariable String eventId,
+            @Valid @RequestBody EventRequest request) {
+
+        log.info(
+                "Received request to update security event eventId={}",
+                eventId
+        );
+
+        SecurityEvent updatedEvent =
+                eventService.updateEvent(
+                        eventId,
+                        request
+                );
+
+        log.info(
+                "Security event updated eventId={}",
+                updatedEvent.getEventId()
+        );
+
+        return ResponseEntity.ok(updatedEvent);
+    }
+
     @GetMapping("/device/{deviceId}")
     public ResponseEntity<List<SecurityEvent>>
     getEventsByDevice(

@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -148,7 +149,68 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles malformed JSON and invalid enum values.
+     *
+     * Examples:
+     * - Invalid JSON syntax
+     * - Invalid EventType value
+     * - Invalid Severity value
+     * - Incorrect JSON field types
+     *
+     * These are client-side request errors and should return
+     * HTTP 400 Bad Request instead of HTTP 500 Internal Server Error.
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, Object>>
+    handleMessageNotReadable(
+            HttpMessageNotReadableException exception) {
+
+        String correlationId =
+                MDC.get(CORRELATION_ID);
+
+        String causeMessage = null;
+
+        if (exception.getMostSpecificCause() != null) {
+            causeMessage =
+                    exception.getMostSpecificCause()
+                            .getMessage();
+        }
+
+        log.warn(
+                "Invalid request body received " +
+                        "correlationId={} message={}",
+                correlationId,
+                causeMessage
+        );
+
+        String message =
+                "Invalid request body. " +
+                        "Check the supplied field values.";
+
+        /*
+         * Give a more useful message when an invalid enum
+         * value is supplied.
+         */
+        if (causeMessage != null &&
+                causeMessage.contains("EventType")) {
+
+            message =
+                    "Invalid eventType. " +
+                            "Check the supported EventType values.";
+        }
+
+        return buildResponse(
+                HttpStatus.BAD_REQUEST,
+                message,
+                correlationId
+        );
+    }
+
+    /**
      * Handles unexpected exceptions.
+     *
+     * This handler should only be reached for genuine
+     * server-side errors that are not handled above.
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>>

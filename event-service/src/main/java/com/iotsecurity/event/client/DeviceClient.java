@@ -46,46 +46,118 @@ public class DeviceClient {
 
     /**
      * Retrieve a device from the Device Service.
+     *
+     * The Event Service can receive either:
+     *
+     * 1. The Device database ID
+     *    Example: 1
+     *
+     * 2. The actual device_id
+     *    Example: DEV-001
+     *
+     * Numeric values are treated as database IDs.
+     * Non-numeric values are treated as device_id values.
      */
-    public DeviceResponse getDevice(String deviceId) {
+    public DeviceResponse getDevice(String deviceIdentifier) {
 
-        String correlationId = MDC.get(CORRELATION_ID);
+        String correlationId =
+                MDC.get(CORRELATION_ID);
 
         log.info(
-                "Requesting device information deviceId={} correlationId={}",
-                deviceId,
+                "Requesting device information identifier={} correlationId={}",
+                deviceIdentifier,
                 correlationId
         );
 
         Supplier<DeviceResponse> request = () -> {
 
             log.debug(
-                    "Calling Device Service for deviceId={}",
-                    deviceId
+                    "Calling Device Service for identifier={}",
+                    deviceIdentifier
             );
 
-            ResponseEntity<DeviceResponse> response =
-                    restClient
-                            .get()
-                            .uri(
-                                    "/api/devices/device-id/{deviceId}",
-                                    deviceId
-                            )
-                            .header(
-                                    CORRELATION_ID,
-                                    correlationId != null
-                                            ? correlationId
-                                            : ""
-                            )
-                            .retrieve()
-                            .toEntity(DeviceResponse.class);
+            ResponseEntity<DeviceResponse> response;
+
+            /*
+             * The client currently sends the database ID from
+             * the device dropdown.
+             *
+             * Example:
+             *
+             *     1
+             *
+             * Therefore use:
+             *
+             *     GET /api/devices/1
+             *
+             * If the identifier is something such as:
+             *
+             *     DEV-001
+             *
+             * use:
+             *
+             *     GET /api/devices/device-id/DEV-001
+             */
+            if (isDatabaseId(deviceIdentifier)) {
+
+                Long databaseId =
+                        Long.valueOf(deviceIdentifier);
+
+                log.debug(
+                        "Using Device Service database-ID endpoint databaseId={}",
+                        databaseId
+                );
+
+                response =
+                        restClient
+                                .get()
+                                .uri(
+                                        "/api/devices/{id}",
+                                        databaseId
+                                )
+                                .header(
+                                        CORRELATION_ID,
+                                        correlationId != null
+                                                ? correlationId
+                                                : ""
+                                )
+                                .retrieve()
+                                .toEntity(
+                                        DeviceResponse.class
+                                );
+
+            } else {
+
+                log.debug(
+                        "Using Device Service device-ID endpoint deviceId={}",
+                        deviceIdentifier
+                );
+
+                response =
+                        restClient
+                                .get()
+                                .uri(
+                                        "/api/devices/device-id/{deviceId}",
+                                        deviceIdentifier
+                                )
+                                .header(
+                                        CORRELATION_ID,
+                                        correlationId != null
+                                                ? correlationId
+                                                : ""
+                                )
+                                .retrieve()
+                                .toEntity(
+                                        DeviceResponse.class
+                                );
+            }
 
             if (!response.getStatusCode().is2xxSuccessful()) {
 
                 log.warn(
-                        "Device Service returned status={} deviceId={}",
+                        "Device Service returned status={} identifier={}",
                         response.getStatusCode(),
-                        deviceId
+                        deviceIdentifier
                 );
 
                 throw new DeviceServiceUnavailableException(
@@ -97,8 +169,8 @@ public class DeviceClient {
             if (response.getBody() == null) {
 
                 log.warn(
-                        "Device Service returned an empty response deviceId={}",
-                        deviceId
+                        "Device Service returned an empty response identifier={}",
+                        deviceIdentifier
                 );
 
                 throw new DeviceServiceUnavailableException(
@@ -106,18 +178,22 @@ public class DeviceClient {
                 );
             }
 
+            DeviceResponse device =
+                    response.getBody();
+
             log.info(
-                    "Device information successfully retrieved deviceId={} correlationId={}",
-                    deviceId,
+                    "Device information successfully retrieved " +
+                            "databaseId={} deviceId={} correlationId={}",
+                    device.id(),
+                    device.deviceId(),
                     correlationId
             );
 
-            return response.getBody();
+            return device;
         };
 
         /*
-         * Retry the Device Service request when a temporary
-         * communication failure occurs.
+         * Retry temporary communication failures.
          */
         Supplier<DeviceResponse> retrySupplier =
                 Retry.decorateSupplier(
@@ -126,8 +202,8 @@ public class DeviceClient {
                 );
 
         /*
-         * Protect the Event Service from repeated failures
-         * of the Device Service.
+         * Protect Event Service from repeated
+         * Device Service failures.
          */
         Supplier<DeviceResponse> protectedSupplier =
                 CircuitBreaker.decorateSupplier(
@@ -142,8 +218,9 @@ public class DeviceClient {
         } catch (Exception exception) {
 
             log.error(
-                    "Device service request failed deviceId={} correlationId={}",
-                    deviceId,
+                    "Device service request failed " +
+                            "identifier={} correlationId={}",
+                    deviceIdentifier,
                     correlationId,
                     exception
             );
@@ -152,6 +229,41 @@ public class DeviceClient {
                     "Device service is unavailable",
                     exception
             );
+        }
+    }
+
+    /**
+     * Determines whether the supplied identifier represents
+     * a Device database ID.
+     *
+     * Examples:
+     *
+     * "1"      -> true
+     * "25"     -> true
+     * "DEV-01" -> false
+     */
+    private boolean isDatabaseId(
+            String deviceIdentifier) {
+
+        if (
+                deviceIdentifier == null ||
+                        deviceIdentifier.isBlank()
+        ) {
+
+            return false;
+        }
+
+        try {
+
+            Long.parseLong(
+                    deviceIdentifier
+            );
+
+            return true;
+
+        } catch (NumberFormatException exception) {
+
+            return false;
         }
     }
 }

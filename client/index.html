@@ -48,6 +48,8 @@
     <div
         id="notification"
         class="notification hidden"
+        role="alert"
+        aria-live="polite"
     >
 
         <span id="notificationIcon">
@@ -62,6 +64,7 @@
             type="button"
             id="closeNotificationButton"
             class="notification-close"
+            aria-label="Close notification"
         >
             ×
         </button>
@@ -501,11 +504,13 @@
             </h3>
 
 
-            <input
-                type="hidden"
-                id="eventDatabaseId"
-            >
+            <!--
+                Event Service identifies an individual event
+                using eventId.
 
+                The database ID is intentionally not used
+                for event update/delete requests.
+            -->
 
             <input
                 type="hidden"

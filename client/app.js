@@ -20,9 +20,16 @@
  *
  * IMPORTANT:
  *
- * The browser ONLY communicates with port 8090.
+ * The browser ONLY communicates with API Gateway :8090.
  *
- * Health-check functionality has intentionally been removed.
+ * Device Service:
+ *     Device update/delete use database id.
+ *
+ * Event Service:
+ *     Event update/delete use eventId.
+ *
+ * The Event Service eventId is NOT the same as the
+ * database id.
  * ============================================================
  */
 
@@ -205,9 +212,14 @@ const eventFormTitle =
     document.getElementById("eventFormTitle");
 
 
-const eventDatabaseId =
-    document.getElementById("eventDatabaseId");
-
+/*
+ * IMPORTANT:
+ *
+ * eventIdInput stores the Event Service identifier.
+ *
+ * We deliberately do not use a database-id field for
+ * event update/delete operations.
+ */
 
 const eventIdInput =
     document.getElementById("eventIdInput");
@@ -249,6 +261,10 @@ const notification =
     document.getElementById("notification");
 
 
+const notificationIcon =
+    document.getElementById("notificationIcon");
+
+
 const notificationText =
     document.getElementById("notificationText");
 
@@ -282,13 +298,6 @@ let eventsCache = [];
    NOTIFICATIONS
    ============================================================ */
 
-/*
- * Display an immediately visible notification.
- *
- * This replaces relying only on the old message area at
- * the bottom of the page.
- */
-
 function showNotification(
     message,
     type = "info"
@@ -297,19 +306,33 @@ function showNotification(
     notification.className =
         `notification ${type}`;
 
+
     notificationText.textContent =
         message;
+
+
+    const icons = {
+
+        success: "✓",
+
+        error: "✕",
+
+        warning: "!",
+
+        info: "●"
+
+    };
+
+
+    notificationIcon.textContent =
+        icons[type] || icons.info;
+
 
     notification.scrollIntoView({
         behavior: "smooth",
         block: "nearest"
     });
 
-
-    /*
-     * Also keep the old message area populated so the
-     * existing feature is not removed.
-     */
 
     showMessage(
         message,
@@ -318,20 +341,12 @@ function showNotification(
 }
 
 
-/*
- * Hide notification.
- */
-
 function hideNotification() {
 
     notification.className =
         "notification hidden";
 }
 
-
-/*
- * Existing message function retained.
- */
 
 function showMessage(
     message,
@@ -395,6 +410,40 @@ function escapeHtml(value) {
 
 
 /* ============================================================
+   JAVASCRIPT ESCAPING
+   ============================================================ */
+
+function escapeJs(
+    value
+) {
+
+    return String(
+        value ?? ""
+    )
+        .replace(
+            /\\/g,
+            "\\\\"
+        )
+        .replace(
+            /'/g,
+            "\\'"
+        )
+        .replace(
+            /"/g,
+            '\\"'
+        )
+        .replace(
+            /\r/g,
+            "\\r"
+        )
+        .replace(
+            /\n/g,
+            "\\n"
+        );
+}
+
+
+/* ============================================================
    JWT
    ============================================================ */
 
@@ -406,7 +455,9 @@ function getJwt() {
 }
 
 
-function saveJwt(token) {
+function saveJwt(
+    token
+) {
 
     localStorage.setItem(
         "jwt",
@@ -495,7 +546,9 @@ async function handleResponse(
     response
 ) {
 
-    if (response.ok) {
+    if (
+        response.ok
+    ) {
 
         return response;
     }
@@ -505,11 +558,37 @@ async function handleResponse(
         `HTTP ${response.status}`;
 
 
-    /*
-     * Specifically identify gateway/service failures.
-     */
-
     if (
+        response.status === 401
+    ) {
+
+        removeJwt();
+
+        errorMessage =
+            "Authentication failed or the JWT has expired. Please login again.";
+
+    } else if (
+        response.status === 403
+    ) {
+
+        errorMessage =
+            "Access denied. Your account is not authorized for this operation.";
+
+    } else if (
+        response.status === 404
+    ) {
+
+        errorMessage =
+            "The requested resource was not found.";
+
+    } else if (
+        response.status === 400
+    ) {
+
+        errorMessage =
+            "The request was invalid. Check the supplied values.";
+
+    } else if (
         response.status === 503
     ) {
 
@@ -534,8 +613,12 @@ async function handleResponse(
 
     try {
 
+        const clonedResponse =
+            response.clone();
+
+
         const errorData =
-            await response.json();
+            await clonedResponse.json();
 
 
         if (
@@ -558,13 +641,39 @@ async function handleResponse(
 
             errorMessage =
                 errorData.detail;
+
+        } else if (
+            errorData.errors
+        ) {
+
+            errorMessage =
+                JSON.stringify(
+                    errorData.errors
+                );
         }
 
     } catch (error) {
 
-        /*
-         * Response was not JSON.
-         */
+        try {
+
+            const text =
+                await response.text();
+
+
+            if (
+                text
+            ) {
+
+                errorMessage =
+                    text;
+            }
+
+        } catch (ignored) {
+
+            /*
+             * No readable response body.
+             */
+        }
     }
 
 
@@ -628,7 +737,31 @@ function convertToArray(
     }
 
 
-    if (data) {
+    if (
+        data &&
+        Array.isArray(
+            data.items
+        )
+    ) {
+
+        return data.items;
+    }
+
+
+    if (
+        data &&
+        Array.isArray(
+            data.data
+        )
+    ) {
+
+        return data.data;
+    }
+
+
+    if (
+        data
+    ) {
 
         return [data];
     }
@@ -647,26 +780,33 @@ async function apiRequest(
     options = {}
 ) {
 
+    const requestHeaders = {
+
+        ...(options.body
+            ? {
+                "Content-Type":
+                    "application/json"
+            }
+            : {}),
+
+        "Accept":
+            "application/json",
+
+        ...getAuthHeaders(),
+
+        ...(options.headers || {})
+
+    };
+
+
     const response =
         await fetch(
             url,
             {
                 ...options,
 
-                headers: {
-
-                    ...(options.body
-                        ? {
-                            "Content-Type":
-                                "application/json"
-                        }
-                        : {}),
-
-                    ...getAuthHeaders(),
-
-                    ...(options.headers || {})
-
-                }
+                headers:
+                    requestHeaders
             }
         );
 
@@ -726,11 +866,15 @@ async function login() {
             await fetch(
                 `${API_BASE_URL}/api/auth/login`,
                 {
-                    method: "POST",
+                    method:
+                        "POST",
 
                     headers: {
 
                         "Content-Type":
+                            "application/json",
+
+                        "Accept":
                             "application/json"
 
                     },
@@ -766,7 +910,9 @@ async function login() {
             data?.accessToken;
 
 
-        if (!token) {
+        if (
+            !token
+        ) {
 
             throw new Error(
                 "Login succeeded, but no JWT was returned."
@@ -788,10 +934,6 @@ async function login() {
             "success"
         );
 
-
-        /*
-         * Automatically load devices and events.
-         */
 
         await loadDashboard();
 
@@ -823,10 +965,6 @@ function logout() {
     removeJwt();
 
 
-    /*
-     * Reset device state.
-     */
-
     devicesCache =
         [];
 
@@ -834,10 +972,6 @@ function logout() {
     eventsCache =
         [];
 
-
-    /*
-     * Reset device results.
-     */
 
     devicesContainer.innerHTML = `
 
@@ -848,10 +982,6 @@ function logout() {
     `;
 
 
-    /*
-     * Reset event results.
-     */
-
     eventsContainer.innerHTML = `
 
         <p class="placeholder">
@@ -861,18 +991,10 @@ function logout() {
     `;
 
 
-    /*
-     * Close forms.
-     */
-
     closeDeviceForm();
 
     closeEventForm();
 
-
-    /*
-     * Clear searches.
-     */
 
     deviceSearch.value =
         "";
@@ -881,22 +1003,7 @@ function logout() {
         "";
 
 
-    /*
-     * Reset status.
-     */
-
-    authenticationStatus.textContent =
-        "Logged out";
-
-    authenticationStatus.className =
-        "status logged-out";
-
-
-    jwtStatus.textContent =
-        "Not available";
-
-    jwtStatus.className =
-        "status logged-out";
+    populateDeviceDropdown();
 
 
     showNotification(
@@ -912,11 +1019,13 @@ function logout() {
 
 async function loadDashboard() {
 
-    /*
-     * Run both loads independently.
-     *
-     * If Event Service is unavailable, devices can still load.
-     */
+    if (
+        !getJwt()
+    ) {
+
+        return;
+    }
+
 
     showNotification(
         "Loading devices and security events...",
@@ -1016,7 +1125,9 @@ function openDeviceEditForm(
     const device =
         devicesCache.find(
             item =>
-                String(item.id) ===
+                String(
+                    item.id
+                ) ===
                 String(id)
         );
 
@@ -1128,7 +1239,9 @@ function closeDeviceForm() {
 
 async function saveDevice() {
 
-    if (!getJwt()) {
+    if (
+        !getJwt()
+    ) {
 
         showNotification(
             "Please login before saving a device.",
@@ -1193,7 +1306,7 @@ async function saveDevice() {
 
 
     const id =
-        deviceDatabaseId.value;
+        deviceDatabaseId.value.trim();
 
 
     const isUpdate =
@@ -1206,31 +1319,19 @@ async function saveDevice() {
             true;
 
 
-        if (isUpdate) {
+        showNotification(
+            isUpdate
+                ? "Updating device..."
+                : "Registering device...",
+            "info"
+        );
 
-            showNotification(
-                "Updating device...",
-                "info"
-            );
-
-        } else {
-
-            showNotification(
-                "Registering device...",
-                "info"
-            );
-        }
-
-
-        /*
-         * PUT:
-         *
-         * /api/devices/{id}
-         */
 
         const url =
             isUpdate
+
                 ? `${API_BASE_URL}/api/devices/${encodeURIComponent(id)}`
+
                 : `${API_BASE_URL}/api/devices`;
 
 
@@ -1240,38 +1341,29 @@ async function saveDevice() {
                 : "POST";
 
 
-        const data =
-            await apiRequest(
-                url,
-                {
-                    method:
-                        method,
+        await apiRequest(
+            url,
+            {
+                method:
+                    method,
 
-                    body:
-                        JSON.stringify(
-                            device
-                        )
-                }
-            );
+                body:
+                    JSON.stringify(
+                        device
+                    )
+            }
+        );
 
 
         closeDeviceForm();
 
 
-        if (isUpdate) {
-
-            showNotification(
-                "Device updated successfully.",
-                "success"
-            );
-
-        } else {
-
-            showNotification(
-                "Device registered successfully.",
-                "success"
-            );
-        }
+        showNotification(
+            isUpdate
+                ? "Device updated successfully."
+                : "Device registered successfully.",
+            "success"
+        );
 
 
         await loadDevices(
@@ -1302,7 +1394,9 @@ async function deleteDevice(
     id
 ) {
 
-    if (!getJwt()) {
+    if (
+        !getJwt()
+    ) {
 
         showNotification(
             "Please login before deleting a device.",
@@ -1316,7 +1410,9 @@ async function deleteDevice(
     const device =
         devicesCache.find(
             item =>
-                String(item.id) ===
+                String(
+                    item.id
+                ) ===
                 String(id)
         );
 
@@ -1338,7 +1434,9 @@ async function deleteDevice(
         );
 
 
-    if (!confirmed) {
+    if (
+        !confirmed
+    ) {
 
         return;
     }
@@ -1351,12 +1449,6 @@ async function deleteDevice(
             "info"
         );
 
-
-        /*
-         * DELETE:
-         *
-         * /api/devices/{id}
-         */
 
         await apiRequest(
             `${API_BASE_URL}/api/devices/${encodeURIComponent(id)}`,
@@ -1396,7 +1488,9 @@ async function loadDevices(
     showNotificationMessage = true
 ) {
 
-    if (!getJwt()) {
+    if (
+        !getJwt()
+    ) {
 
         throw new Error(
             "Please login before viewing devices."
@@ -1437,10 +1531,6 @@ async function loadDevices(
             devicesCache
         );
 
-
-        /*
-         * Populate the event device dropdown.
-         */
 
         populateDeviceDropdown();
 
@@ -1486,10 +1576,6 @@ async function loadDevices(
 }
 
 
-/*
- * Existing public view function.
- */
-
 async function viewDevices() {
 
     try {
@@ -1519,7 +1605,9 @@ function searchDevices() {
             .toLowerCase();
 
 
-    if (!search) {
+    if (
+        !search
+    ) {
 
         displayDevices(
             devicesCache
@@ -1591,6 +1679,7 @@ function clearDeviceSearch() {
 
     deviceSearch.value =
         "";
+
 
     displayDevices(
         devicesCache
@@ -1766,15 +1855,13 @@ function displayDevices(
 }
 
 
-/* ============================================================
-   DISPLAY SINGLE DEVICE
-   ============================================================ */
-
 function displaySingleDevice(
     device
 ) {
 
-    if (!device) {
+    if (
+        !device
+    ) {
 
         devicesContainer.innerHTML = `
 
@@ -1801,7 +1888,9 @@ function displaySingleDevice(
 
 async function openEventCreateForm() {
 
-    if (!getJwt()) {
+    if (
+        !getJwt()
+    ) {
 
         showNotification(
             "Please login before creating a security event.",
@@ -1845,12 +1934,12 @@ async function openEventCreateForm() {
             "Create Event";
 
 
+        populateDeviceDropdown();
+
+
         eventFormContainer.classList.remove(
             "hidden"
         );
-
-
-        populateDeviceDropdown();
 
 
         eventFormContainer.scrollIntoView({
@@ -1869,24 +1958,66 @@ async function openEventCreateForm() {
 }
 
 
+/* ============================================================
+   EVENT EDIT
+   ============================================================ */
+
+/*
+ * IMPORTANT BACKEND CHANGE
+ *
+ * Event Service retrieves a specific event by eventId.
+ *
+ * Therefore:
+ *
+ *     openEventEditForm(eventId)
+ *
+ * searches eventsCache by event.eventId.
+ *
+ * It does NOT search by event.id.
+ */
+
 function openEventEditForm(
-    id
+    eventId
 ) {
 
     const event =
         eventsCache.find(
             item =>
                 String(
-                    item.id
+                    item.eventId
                 ) ===
-                String(id)
+                String(eventId)
         );
 
 
-    if (!event) {
+    if (
+        !event
+    ) {
 
         showNotification(
-            "The selected event could not be found.",
+            "The selected security event could not be found.",
+            "error"
+        );
+
+        return;
+    }
+
+
+    /*
+     * eventId is the actual identifier required by
+     * the Event Service endpoint.
+     */
+
+    const identifier =
+        event.eventId;
+
+
+    if (
+        !identifier
+    ) {
+
+        showNotification(
+            "The selected event does not contain an eventId.",
             "error"
         );
 
@@ -1902,23 +2033,24 @@ function openEventEditForm(
         "Update Event";
 
 
-    eventDatabaseId.value =
-        event.id ?? "";
-
-
     eventIdInput.value =
-        event.eventId ?? "";
+        identifier;
 
 
     populateDeviceDropdown();
 
 
     /*
-     * deviceId may be the database ID.
+     * The Event Service stores deviceId.
+     *
+     * The device dropdown uses the device database ID.
      */
 
     eventDeviceInput.value =
-        event.deviceId ?? "";
+        event.deviceId !== null &&
+        event.deviceId !== undefined
+            ? String(event.deviceId)
+            : "";
 
 
     eventTypeInput.value =
@@ -1954,9 +2086,6 @@ function openEventEditForm(
 
 
 function clearEventForm() {
-
-    eventDatabaseId.value =
-        "";
 
     eventIdInput.value =
         "";
@@ -2025,7 +2154,9 @@ function populateDeviceDropdown() {
 
 
             option.value =
-                device.id;
+                String(
+                    device.id
+                );
 
 
             option.textContent =
@@ -2041,12 +2172,38 @@ function populateDeviceDropdown() {
 
 
 /* ============================================================
+   EVENT ENUM VALIDATION
+   ============================================================ */
+
+function isValidEventType(
+    eventType
+) {
+
+    return EVENT_TYPES.includes(
+        eventType
+    );
+}
+
+
+function isValidSeverity(
+    severity
+) {
+
+    return EVENT_SEVERITIES.includes(
+        severity
+    );
+}
+
+
+/* ============================================================
    EVENT CREATE / UPDATE
    ============================================================ */
 
 async function saveEvent() {
 
-    if (!getJwt()) {
+    if (
+        !getJwt()
+    ) {
 
         showNotification(
             "Please login before saving a security event.",
@@ -2069,6 +2226,10 @@ async function saveEvent() {
         eventSeverityInput.value;
 
 
+    const sourceIp =
+        eventSourceIpInput.value.trim();
+
+
     const description =
         eventDescriptionInput.value.trim();
 
@@ -2089,20 +2250,18 @@ async function saveEvent() {
     }
 
 
-    const numericDeviceId =
-        Number(
-            selectedDeviceId
-        );
-
+    /*
+     * Validate against the exact Java EventType enum.
+     */
 
     if (
-        Number.isNaN(
-            numericDeviceId
+        !isValidEventType(
+            eventType
         )
     ) {
 
         showNotification(
-            "The selected device database ID is not numeric.",
+            `Invalid event type: ${eventType}`,
             "error"
         );
 
@@ -2110,20 +2269,71 @@ async function saveEvent() {
     }
 
 
-    const isUpdate =
-        Boolean(
-            eventDatabaseId.value
+    /*
+     * Validate against the exact Java Severity enum.
+     */
+
+    if (
+        !isValidSeverity(
+            severity
+        )
+    ) {
+
+        showNotification(
+            `Invalid severity: ${severity}`,
+            "error"
         );
+
+        return;
+    }
+
+
+    const numericDeviceId =
+        Number(
+            selectedDeviceId
+        );
+
+
+    if (
+        !Number.isInteger(
+            numericDeviceId
+        ) ||
+        numericDeviceId <= 0
+    ) {
+
+        showNotification(
+            "The selected device database ID is invalid.",
+            "error"
+        );
+
+        return;
+    }
 
 
     /*
      * IMPORTANT:
      *
-     * We intentionally do NOT send generated fields such as
-     * timestamp unless the backend specifically expects them.
+     * eventId is the Event Service identifier.
      *
-     * We also do not send eventId on CREATE because your
-     * SecurityEvent entity generates it.
+     * Empty eventId = CREATE
+     *
+     * Existing eventId = UPDATE
+     */
+
+    const eventId =
+        eventIdInput.value.trim();
+
+
+    const isUpdate =
+        Boolean(eventId);
+
+
+    /*
+     * Request body.
+     *
+     * eventId is deliberately not sent during CREATE.
+     *
+     * The backend generates the eventId.
      */
 
     const securityEvent = {
@@ -2141,13 +2351,15 @@ async function saveEvent() {
             description,
 
         sourceIp:
-            eventSourceIpInput.value.trim()
+            sourceIp
 
     };
 
 
     /*
-     * For UPDATE we only add status if the user selected it.
+     * Status is included for UPDATE.
+     *
+     * This retains the existing event status feature.
      */
 
     if (
@@ -2166,29 +2378,34 @@ async function saveEvent() {
             true;
 
 
-        if (isUpdate) {
-
-            showNotification(
-                "Updating security event...",
-                "info"
-            );
-
-        } else {
-
-            showNotification(
-                "Creating security event...",
-                "info"
-            );
-        }
+        showNotification(
+            isUpdate
+                ? "Updating security event..."
+                : "Creating security event...",
+            "info"
+        );
 
 
-        const id =
-            eventDatabaseId.value;
-
+        /*
+         * CREATE:
+         *
+         * POST /api/events
+         *
+         *
+         * UPDATE:
+         *
+         * PUT /api/events/{eventId}
+         *
+         * NOT:
+         *
+         * PUT /api/events/{databaseId}
+         */
 
         const url =
             isUpdate
-                ? `${API_BASE_URL}/api/events/${encodeURIComponent(id)}`
+
+                ? `${API_BASE_URL}/api/events/${encodeURIComponent(eventId)}`
+
                 : `${API_BASE_URL}/api/events`;
 
 
@@ -2198,42 +2415,29 @@ async function saveEvent() {
                 : "POST";
 
 
-        /*
-         * This is the actual request.
-         */
+        await apiRequest(
+            url,
+            {
+                method:
+                    method,
 
-        const data =
-            await apiRequest(
-                url,
-                {
-                    method:
-                        method,
-
-                    body:
-                        JSON.stringify(
-                            securityEvent
-                        )
-                }
-            );
+                body:
+                    JSON.stringify(
+                        securityEvent
+                    )
+            }
+        );
 
 
         closeEventForm();
 
 
-        if (isUpdate) {
-
-            showNotification(
-                "Security event updated successfully.",
-                "success"
-            );
-
-        } else {
-
-            showNotification(
-                "Security event created successfully.",
-                "success"
-            );
-        }
+        showNotification(
+            isUpdate
+                ? "Security event updated successfully."
+                : "Security event created successfully.",
+            "success"
+        );
 
 
         await loadSecurityEvents(
@@ -2243,17 +2447,14 @@ async function saveEvent() {
 
     } catch (error) {
 
-        /*
-         * This is particularly useful for the current
-         * HTTP 503 problem.
-         */
+        const message =
+            error.message.toLowerCase();
+
 
         if (
-            !isUpdate &&
-            error.message.toLowerCase()
-                .includes(
-                    "service unavailable"
-                )
+            message.includes(
+                "service unavailable"
+            )
         ) {
 
             showNotification(
@@ -2281,11 +2482,21 @@ async function saveEvent() {
    EVENT DELETE
    ============================================================ */
 
+/*
+ * IMPORTANT:
+ *
+ * The parameter here is eventId.
+ *
+ * The database id is NOT used for DELETE.
+ */
+
 async function deleteEvent(
-    id
+    eventId
 ) {
 
-    if (!getJwt()) {
+    if (
+        !getJwt()
+    ) {
 
         showNotification(
             "Please login before deleting an event.",
@@ -2300,16 +2511,31 @@ async function deleteEvent(
         eventsCache.find(
             item =>
                 String(
-                    item.id
+                    item.eventId
                 ) ===
-                String(id)
+                String(eventId)
         );
 
 
-    if (!event) {
+    if (
+        !event
+    ) {
 
         showNotification(
-            "The selected event could not be found.",
+            "The selected security event could not be found.",
+            "error"
+        );
+
+        return;
+    }
+
+
+    if (
+        !event.eventId
+    ) {
+
+        showNotification(
+            "The selected security event does not contain an eventId.",
             "error"
         );
 
@@ -2318,8 +2544,7 @@ async function deleteEvent(
 
 
     const eventName =
-        event.eventId ||
-        `Database ID ${event.id}`;
+        event.eventId;
 
 
     const confirmed =
@@ -2328,7 +2553,9 @@ async function deleteEvent(
         );
 
 
-    if (!confirmed) {
+    if (
+        !confirmed
+    ) {
 
         return;
     }
@@ -2342,8 +2569,14 @@ async function deleteEvent(
         );
 
 
+        /*
+         * IMPORTANT:
+         *
+         * DELETE uses eventId.
+         */
+
         await apiRequest(
-            `${API_BASE_URL}/api/events/${encodeURIComponent(id)}`,
+            `${API_BASE_URL}/api/events/${encodeURIComponent(event.eventId)}`,
             {
                 method:
                     "DELETE"
@@ -2380,7 +2613,9 @@ async function loadSecurityEvents(
     showNotificationMessage = true
 ) {
 
-    if (!getJwt()) {
+    if (
+        !getJwt()
+    ) {
 
         throw new Error(
             "Please login before viewing security events."
@@ -2463,10 +2698,6 @@ async function loadSecurityEvents(
 }
 
 
-/*
- * Existing public function.
- */
-
 async function viewSecurityEvents() {
 
     try {
@@ -2496,7 +2727,9 @@ function searchEvents() {
             .toLowerCase();
 
 
-    if (!search) {
+    if (
+        !search
+    ) {
 
         displaySecurityEvents(
             eventsCache
@@ -2517,6 +2750,10 @@ function searchEvents() {
             event => {
 
                 const values = [
+
+                    /*
+                     * Keep both identifiers searchable.
+                     */
 
                     event.id,
 
@@ -2581,6 +2818,47 @@ function clearEventSearch() {
         "Event search cleared.",
         "info"
     );
+}
+
+
+/* ============================================================
+   EVENT STATUS DISPLAY
+   ============================================================ */
+
+function getEventStatusClass(
+    status
+) {
+
+    switch (
+        String(
+            status ?? ""
+        ).toUpperCase()
+    ) {
+
+        case "OPEN":
+
+            return "event-status-open";
+
+
+        case "INVESTIGATING":
+
+            return "event-status-investigating";
+
+
+        case "RESOLVED":
+
+            return "event-status-resolved";
+
+
+        case "CLOSED":
+
+            return "event-status-closed";
+
+
+        default:
+
+            return "";
+    }
 }
 
 
@@ -2691,6 +2969,29 @@ function displaySecurityEvents(
             }
 
 
+            const status =
+                String(
+                    event.status ?? ""
+                )
+                    .toUpperCase();
+
+
+            const statusClass =
+                getEventStatusClass(
+                    status
+                );
+
+
+            /*
+             * The buttons use event.eventId.
+             *
+             * This is the critical fix.
+             */
+
+            const eventIdentifier =
+                event.eventId ?? "";
+
+
             html += `
 
                 <tr>
@@ -2732,9 +3033,15 @@ function displaySecurityEvents(
                     </td>
 
                     <td>
-                        ${escapeHtml(
-                            event.status ?? ""
-                        )}
+
+                        <span
+                            class="event-status ${statusClass}"
+                        >
+                            ${escapeHtml(
+                                event.status ?? ""
+                            )}
+                        </span>
+
                     </td>
 
                     <td>
@@ -2760,7 +3067,8 @@ function displaySecurityEvents(
                         <button
                             type="button"
                             class="small-button edit-button"
-                            onclick="openEventEditForm('${escapeJs(event.id)}')"
+                            onclick="openEventEditForm('${escapeJs(eventIdentifier)}')"
+                            ${eventIdentifier ? "" : "disabled"}
                         >
                             Edit
                         </button>
@@ -2769,7 +3077,8 @@ function displaySecurityEvents(
                         <button
                             type="button"
                             class="small-button delete-button"
-                            onclick="deleteEvent('${escapeJs(event.id)}')"
+                            onclick="deleteEvent('${escapeJs(eventIdentifier)}')"
+                            ${eventIdentifier ? "" : "disabled"}
                         >
                             Delete
                         </button>
@@ -2805,7 +3114,9 @@ function displaySingleEvent(
     event
 ) {
 
-    if (!event) {
+    if (
+        !event
+    ) {
 
         eventsContainer.innerHTML = `
 
@@ -2823,32 +3134,6 @@ function displaySingleEvent(
     displaySecurityEvents(
         [event]
     );
-}
-
-
-/* ============================================================
-   JAVASCRIPT ESCAPING
-   ============================================================ */
-
-function escapeJs(
-    value
-) {
-
-    return String(
-        value ?? ""
-    )
-        .replace(
-            /\\/g,
-            "\\\\"
-        )
-        .replace(
-            /'/g,
-            "\\'"
-        )
-        .replace(
-            /"/g,
-            '\\"'
-        );
 }
 
 
@@ -3018,8 +3303,7 @@ document.addEventListener(
 
 
         /*
-         * If a JWT already exists from a previous session,
-         * automatically restore the dashboard.
+         * Restore an existing JWT session.
          */
 
         if (

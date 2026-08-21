@@ -1,6 +1,7 @@
 package com.iotsecurity.event.service;
 
 import com.iotsecurity.event.client.DeviceClient;
+import com.iotsecurity.event.dto.DeviceResponse;
 import com.iotsecurity.event.dto.EventRequest;
 import com.iotsecurity.event.model.SecurityEvent;
 import com.iotsecurity.event.repository.SecurityEventRepository;
@@ -19,7 +20,9 @@ import java.util.UUID;
 public class SecurityEventService {
 
     private static final Logger log =
-            LoggerFactory.getLogger(SecurityEventService.class);
+            LoggerFactory.getLogger(
+                    SecurityEventService.class
+            );
 
     private static final String CORRELATION_ID =
             "X-Correlation-ID";
@@ -32,17 +35,22 @@ public class SecurityEventService {
             SecurityEventRepository eventRepository,
             DeviceClient deviceClient) {
 
-        this.eventRepository = eventRepository;
-        this.deviceClient = deviceClient;
+        this.eventRepository =
+                eventRepository;
+
+        this.deviceClient =
+                deviceClient;
     }
 
-    public SecurityEvent createEvent(EventRequest request) {
+    public SecurityEvent createEvent(
+            EventRequest request) {
 
         String correlationId =
                 MDC.get(CORRELATION_ID);
 
         log.info(
-                "Creating security event deviceId={} eventType={} severity={} correlationId={}",
+                "Creating security event deviceIdentifier={} " +
+                        "eventType={} severity={} correlationId={}",
                 request.deviceId(),
                 request.eventType(),
                 request.severity(),
@@ -50,24 +58,51 @@ public class SecurityEventService {
         );
 
         /*
-         * Verify that the device exists before creating
-         * the security event.
+         * Verify that the device exists.
          *
-         * DeviceClient handles:
-         * - Retry
-         * - Circuit breaker
-         * - Correlation ID forwarding
+         * DeviceClient supports both:
+         *
+         * - database ID
+         * - actual device_id
+         *
+         * The client currently sends the database ID,
+         * so DeviceClient will resolve that ID to the
+         * actual Device object.
          */
-        deviceClient.getDevice(request.deviceId());
+        DeviceResponse device =
+                deviceClient.getDevice(
+                        request.deviceId()
+                );
 
-        SecurityEvent event = new SecurityEvent();
+        /*
+         * Create the security event.
+         */
+        SecurityEvent event =
+                new SecurityEvent();
 
         event.setEventId(
                 "EVT-" + UUID.randomUUID()
         );
 
+        /*
+         * IMPORTANT:
+         *
+         * Store the actual device_id from the Device
+         * Service rather than the PostgreSQL database ID.
+         *
+         * Example:
+         *
+         * Device database:
+         *
+         * id        = 1
+         * device_id = DEV-001
+         *
+         * Event database:
+         *
+         * device_id = DEV-001
+         */
         event.setDeviceId(
-                request.deviceId()
+                device.deviceId()
         );
 
         event.setEventType(
@@ -90,14 +125,21 @@ public class SecurityEventService {
                 LocalDateTime.now()
         );
 
-        event.setStatus("OPEN");
+        event.setStatus(
+                "OPEN"
+        );
 
         SecurityEvent savedEvent =
-                eventRepository.save(event);
+                eventRepository.save(
+                        event
+                );
 
         log.info(
-                "Security event created eventId={} deviceId={} status={} correlationId={}",
+                "Security event created eventId={} " +
+                        "deviceDatabaseId={} deviceId={} " +
+                        "status={} correlationId={}",
                 savedEvent.getEventId(),
+                device.id(),
                 savedEvent.getDeviceId(),
                 savedEvent.getStatus(),
                 correlationId
@@ -109,7 +151,9 @@ public class SecurityEventService {
     @Transactional
     public List<SecurityEvent> getAllEvents() {
 
-        log.info("Retrieving all security events");
+        log.info(
+                "Retrieving all security events"
+        );
 
         return eventRepository.findAll();
     }
@@ -143,7 +187,8 @@ public class SecurityEventService {
                 deviceId
         );
 
-        return eventRepository.findByDeviceId(deviceId);
+        return eventRepository
+                .findByDeviceId(deviceId);
     }
 
     @Transactional
@@ -155,7 +200,107 @@ public class SecurityEventService {
                 status
         );
 
-        return eventRepository.findByStatus(status);
+        return eventRepository
+                .findByStatus(status);
+    }
+
+    public SecurityEvent updateEvent(
+            String eventId,
+            EventRequest request) {
+
+        String correlationId =
+                MDC.get(CORRELATION_ID);
+
+        log.info(
+                "Updating security event eventId={} " +
+                        "eventType={} severity={} correlationId={}",
+                eventId,
+                request.eventType(),
+                request.severity(),
+                correlationId
+        );
+
+        /*
+         * Find the existing event using the public eventId.
+         *
+         * Example:
+         *
+         * EVT-14c75691-cc88-45af-9405-03227bdbe0f6
+         */
+        SecurityEvent event =
+                eventRepository
+                        .findByEventId(eventId)
+                        .orElseThrow(() ->
+                                new IllegalArgumentException(
+                                        "Security event '" +
+                                                eventId +
+                                                "' was not found."
+                                )
+                        );
+
+        /*
+         * Verify that the supplied device exists.
+         *
+         * EventRequest.deviceId() may contain either:
+         *
+         * - PostgreSQL device ID
+         * - actual device_id
+         *
+         * DeviceClient resolves it.
+         */
+        DeviceResponse device =
+                deviceClient.getDevice(
+                        request.deviceId()
+                );
+
+        /*
+         * Keep the actual device_id in the event.
+         */
+        event.setDeviceId(
+                device.deviceId()
+        );
+
+        event.setEventType(
+                request.eventType()
+        );
+
+        event.setSeverity(
+                request.severity()
+        );
+
+        event.setDescription(
+                request.description()
+        );
+
+        event.setSourceIp(
+                request.sourceIp()
+        );
+
+        /*
+         * Do NOT change:
+         *
+         * - id
+         * - eventId
+         * - timestamp
+         * - status
+         *
+         * during a normal event update.
+         */
+
+        SecurityEvent updatedEvent =
+                eventRepository.save(event);
+
+        log.info(
+                "Security event updated successfully " +
+                        "eventId={} deviceId={} " +
+                        "status={} correlationId={}",
+                updatedEvent.getEventId(),
+                updatedEvent.getDeviceId(),
+                updatedEvent.getStatus(),
+                correlationId
+        );
+
+        return updatedEvent;
     }
 
     public SecurityEvent updateStatus(
@@ -163,7 +308,8 @@ public class SecurityEventService {
             String status) {
 
         log.info(
-                "Updating security event status eventId={} status={}",
+                "Updating security event status " +
+                        "eventId={} status={}",
                 eventId,
                 status
         );
@@ -176,10 +322,13 @@ public class SecurityEventService {
         );
 
         SecurityEvent updatedEvent =
-                eventRepository.save(event);
+                eventRepository.save(
+                        event
+                );
 
         log.info(
-                "Security event status updated eventId={} status={}",
+                "Security event status updated " +
+                        "eventId={} status={}",
                 updatedEvent.getEventId(),
                 updatedEvent.getStatus()
         );
@@ -187,7 +336,8 @@ public class SecurityEventService {
         return updatedEvent;
     }
 
-    public void deleteEvent(String eventId) {
+    public void deleteEvent(
+            String eventId) {
 
         log.warn(
                 "Deleting security event eventId={}",
@@ -197,7 +347,9 @@ public class SecurityEventService {
         SecurityEvent event =
                 getEventByEventId(eventId);
 
-        eventRepository.delete(event);
+        eventRepository.delete(
+                event
+        );
 
         log.info(
                 "Security event deleted eventId={}",
