@@ -1,12 +1,19 @@
 package com.iotsecurity.gateway.security;
 
+import java.util.List;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.reactive.CorsConfigurationSource;
+import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 
 import org.springframework.security.web.server.SecurityWebFilterChain;
+
 
 @Configuration
 @EnableWebFluxSecurity
@@ -28,26 +35,59 @@ public class SecurityConfig {
                 )
 
                 // =================================================
+                // CORS
+                // =================================================
+
+                .cors(
+                        cors -> {
+                        }
+                )
+
+                // =================================================
                 // AUTHORIZATION
                 // =================================================
 
                 .authorizeExchange(exchange -> exchange
 
-                        // Public authentication endpoints
+                        // -------------------------------------------------
+                        // CORS PREFLIGHT
+                        // -------------------------------------------------
+                        // Browsers send OPTIONS before certain cross-origin
+                        // requests such as POST with JSON.
+                        //
+                        // This must be allowed without JWT.
+                        // -------------------------------------------------
+
+                        .pathMatchers(
+                                org.springframework.http.HttpMethod.OPTIONS,
+                                "/**"
+                        )
+                        .permitAll()
+
+                        // -------------------------------------------------
+                        // PUBLIC AUTHENTICATION ENDPOINTS
+                        // -------------------------------------------------
+
                         .pathMatchers(
                                 "/api/auth/login",
                                 "/api/auth/register"
                         )
                         .permitAll()
 
-                        // Public health/info endpoints
+                        // -------------------------------------------------
+                        // PUBLIC HEALTH / INFO ENDPOINTS
+                        // -------------------------------------------------
+
                         .pathMatchers(
                                 "/actuator/health",
                                 "/actuator/info"
                         )
                         .permitAll()
 
-                        // Everything else requires JWT
+                        // -------------------------------------------------
+                        // EVERYTHING ELSE REQUIRES JWT
+                        // -------------------------------------------------
+
                         .anyExchange()
                         .authenticated()
                 )
@@ -68,5 +108,88 @@ public class SecurityConfig {
                 // =================================================
 
                 .build();
+    }
+
+
+    // =============================================================
+    // CORS CONFIGURATION
+    // =============================================================
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+
+        CorsConfiguration configuration =
+                new CorsConfiguration();
+
+
+        // ---------------------------------------------------------
+        // ALLOWED CLIENT ORIGINS
+        // ---------------------------------------------------------
+
+        configuration.setAllowedOrigins(
+                List.of(
+                        "http://localhost:5500",
+                        "http://127.0.0.1:5500"
+                )
+        );
+
+
+        // ---------------------------------------------------------
+        // ALLOWED HTTP METHODS
+        // ---------------------------------------------------------
+
+        configuration.setAllowedMethods(
+                List.of(
+                        "GET",
+                        "POST",
+                        "PUT",
+                        "DELETE",
+                        "OPTIONS"
+                )
+        );
+
+
+        // ---------------------------------------------------------
+        // ALLOWED HEADERS
+        // ---------------------------------------------------------
+
+        configuration.setAllowedHeaders(
+                List.of("*")
+        );
+
+
+        // ---------------------------------------------------------
+        // EXPOSED HEADERS
+        // ---------------------------------------------------------
+
+        configuration.setExposedHeaders(
+                List.of(
+                        "Authorization"
+                )
+        );
+
+
+        // ---------------------------------------------------------
+        // CREDENTIALS
+        // ---------------------------------------------------------
+
+        configuration.setAllowCredentials(true);
+
+
+        // ---------------------------------------------------------
+        // REGISTER CORS CONFIGURATION
+        // ---------------------------------------------------------
+
+        UrlBasedCorsConfigurationSource source =
+                new UrlBasedCorsConfigurationSource();
+
+
+        source.registerCorsConfiguration(
+                "/**",
+                configuration
+        );
+
+
+        return source;
     }
 }
