@@ -1,5 +1,10 @@
 package com.iotsecurity.event.model;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
+@Schema(
+        description = "Security event type"
+)
 public enum EventType {
 
     UNAUTHORIZED_ACCESS,

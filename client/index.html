@@ -140,6 +140,126 @@
 
 
     <!-- =====================================================
+         USER REGISTRATION
+         ADMIN ONLY
+         ===================================================== -->
+
+    <section
+        id="userRegistrationCard"
+        class="card admin-only hidden"
+    >
+
+        <div class="section-heading">
+
+            <div>
+
+                <h2>
+                    User Registration
+                </h2>
+
+                <p class="section-description">
+                    Register a new user account. Only administrators can access this feature.
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <div
+            id="registrationFormContainer"
+            class="inline-form"
+        >
+
+            <h3>
+                Register New User
+            </h3>
+
+
+            <div class="form-grid">
+
+                <div class="form-group">
+
+                    <label for="registerUsernameInput">
+                        Username *
+                    </label>
+
+                    <input
+                        type="text"
+                        id="registerUsernameInput"
+                        placeholder="Enter new username"
+                        autocomplete="off"
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="registerPasswordInput">
+                        Password *
+                    </label>
+
+                    <input
+                        type="password"
+                        id="registerPasswordInput"
+                        placeholder="Enter temporary password"
+                        autocomplete="new-password"
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="registerRoleInput">
+                        Role *
+                    </label>
+
+                    <select id="registerRoleInput">
+
+                        <option value="USER">
+                            USER
+                        </option>
+
+                        <option value="ADMIN">
+                            ADMIN
+                        </option>
+
+                    </select>
+
+                </div>
+
+            </div>
+
+
+            <div class="button-row">
+
+                <button
+                    type="button"
+                    id="registerUserButton"
+                    class="success"
+                >
+                    Register User
+                </button>
+
+
+                <button
+                    type="button"
+                    id="clearRegistrationButton"
+                    class="secondary"
+                >
+                    Clear
+                </button>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- =====================================================
          DEVICE MANAGEMENT
          ===================================================== -->
 
@@ -161,8 +281,6 @@
 
         </div>
 
-
-        <!-- DEVICE SEARCH -->
 
         <div class="search-panel">
 
@@ -427,8 +545,6 @@
         </div>
 
 
-        <!-- EVENT SEARCH -->
-
         <div class="search-panel">
 
             <div class="form-group">
@@ -492,8 +608,6 @@
         </div>
 
 
-        <!-- EVENT FORM -->
-
         <div
             id="eventFormContainer"
             class="inline-form hidden"
@@ -503,14 +617,6 @@
                 Create Security Event
             </h3>
 
-
-            <!--
-                Event Service identifies an individual event
-                using eventId.
-
-                The database ID is intentionally not used
-                for event update/delete requests.
-            -->
 
             <input
                 type="hidden"
@@ -549,53 +655,18 @@
                             Select event type
                         </option>
 
-                        <option value="UNAUTHORIZED_ACCESS">
-                            UNAUTHORIZED_ACCESS
-                        </option>
-
-                        <option value="FAILED_LOGIN">
-                            FAILED_LOGIN
-                        </option>
-
-                        <option value="BRUTE_FORCE">
-                            BRUTE_FORCE
-                        </option>
-
-                        <option value="MALWARE_DETECTED">
-                            MALWARE_DETECTED
-                        </option>
-
-                        <option value="SUSPICIOUS_NETWORK_ACTIVITY">
-                            SUSPICIOUS_NETWORK_ACTIVITY
-                        </option>
-
-                        <option value="PORT_SCAN">
-                            PORT_SCAN
-                        </option>
-
-                        <option value="DEVICE_OFFLINE">
-                            DEVICE_OFFLINE
-                        </option>
-
-                        <option value="DEVICE_TAMPERING">
-                            DEVICE_TAMPERING
-                        </option>
-
-                        <option value="DATA_EXFILTRATION">
-                            DATA_EXFILTRATION
-                        </option>
-
-                        <option value="ANOMALOUS_BEHAVIOR">
-                            ANOMALOUS_BEHAVIOR
-                        </option>
-
-                        <option value="POLICY_VIOLATION">
-                            POLICY_VIOLATION
-                        </option>
-
-                        <option value="OTHER">
-                            OTHER
-                        </option>
+                        <option value="UNAUTHORIZED_ACCESS">UNAUTHORIZED_ACCESS</option>
+                        <option value="FAILED_LOGIN">FAILED_LOGIN</option>
+                        <option value="BRUTE_FORCE">BRUTE_FORCE</option>
+                        <option value="MALWARE_DETECTED">MALWARE_DETECTED</option>
+                        <option value="SUSPICIOUS_NETWORK_ACTIVITY">SUSPICIOUS_NETWORK_ACTIVITY</option>
+                        <option value="PORT_SCAN">PORT_SCAN</option>
+                        <option value="DEVICE_OFFLINE">DEVICE_OFFLINE</option>
+                        <option value="DEVICE_TAMPERING">DEVICE_TAMPERING</option>
+                        <option value="DATA_EXFILTRATION">DATA_EXFILTRATION</option>
+                        <option value="ANOMALOUS_BEHAVIOR">ANOMALOUS_BEHAVIOR</option>
+                        <option value="POLICY_VIOLATION">POLICY_VIOLATION</option>
+                        <option value="OTHER">OTHER</option>
 
                     </select>
 
@@ -614,21 +685,10 @@
                             Select severity
                         </option>
 
-                        <option value="LOW">
-                            LOW
-                        </option>
-
-                        <option value="MEDIUM">
-                            MEDIUM
-                        </option>
-
-                        <option value="HIGH">
-                            HIGH
-                        </option>
-
-                        <option value="CRITICAL">
-                            CRITICAL
-                        </option>
+                        <option value="LOW">LOW</option>
+                        <option value="MEDIUM">MEDIUM</option>
+                        <option value="HIGH">HIGH</option>
+                        <option value="CRITICAL">CRITICAL</option>
 
                     </select>
 
@@ -673,21 +733,10 @@
 
                     <select id="eventStatusInput">
 
-                        <option value="OPEN">
-                            OPEN
-                        </option>
-
-                        <option value="INVESTIGATING">
-                            INVESTIGATING
-                        </option>
-
-                        <option value="RESOLVED">
-                            RESOLVED
-                        </option>
-
-                        <option value="CLOSED">
-                            CLOSED
-                        </option>
+                        <option value="OPEN">OPEN</option>
+                        <option value="INVESTIGATING">INVESTIGATING</option>
+                        <option value="RESOLVED">RESOLVED</option>
+                        <option value="CLOSED">CLOSED</option>
 
                     </select>
 
@@ -756,6 +805,38 @@
                 class="status logged-out"
             >
                 Logged out
+            </span>
+
+        </div>
+
+
+        <div class="status-row">
+
+            <strong>
+                Username:
+            </strong>
+
+            <span
+                id="currentUsername"
+                class="status logged-out"
+            >
+                Not logged in
+            </span>
+
+        </div>
+
+
+        <div class="status-row">
+
+            <strong>
+                Role:
+            </strong>
+
+            <span
+                id="currentUserRole"
+                class="status logged-out"
+            >
+                Not available
             </span>
 
         </div>

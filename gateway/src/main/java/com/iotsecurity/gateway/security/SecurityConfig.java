@@ -49,14 +49,9 @@ public class SecurityConfig {
 
                 .authorizeExchange(exchange -> exchange
 
-                        // -------------------------------------------------
+                        // =================================================
                         // CORS PREFLIGHT
-                        // -------------------------------------------------
-                        // Browsers send OPTIONS before certain cross-origin
-                        // requests such as POST with JSON.
-                        //
-                        // This must be allowed without JWT.
-                        // -------------------------------------------------
+                        // =================================================
 
                         .pathMatchers(
                                 org.springframework.http.HttpMethod.OPTIONS,
@@ -64,9 +59,24 @@ public class SecurityConfig {
                         )
                         .permitAll()
 
-                        // -------------------------------------------------
+                        // =================================================
+                        // SWAGGER / OPENAPI
+                        // =================================================
+
+                        .pathMatchers(
+                                "/swagger-ui.html",
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**",
+
+                                "/device-service/v3/api-docs",
+                                "/event-service/v3/api-docs",
+                                "/auth-service/v3/api-docs"
+                        )
+                        .permitAll()
+
+                        // =================================================
                         // PUBLIC AUTHENTICATION ENDPOINTS
-                        // -------------------------------------------------
+                        // =================================================
 
                         .pathMatchers(
                                 "/api/auth/login",
@@ -74,9 +84,9 @@ public class SecurityConfig {
                         )
                         .permitAll()
 
-                        // -------------------------------------------------
+                        // =================================================
                         // PUBLIC HEALTH / INFO ENDPOINTS
-                        // -------------------------------------------------
+                        // =================================================
 
                         .pathMatchers(
                                 "/actuator/health",
@@ -84,9 +94,9 @@ public class SecurityConfig {
                         )
                         .permitAll()
 
-                        // -------------------------------------------------
+                        // =================================================
                         // EVERYTHING ELSE REQUIRES JWT
-                        // -------------------------------------------------
+                        // =================================================
 
                         .anyExchange()
                         .authenticated()
@@ -143,6 +153,7 @@ public class SecurityConfig {
                         "GET",
                         "POST",
                         "PUT",
+                        "PATCH",
                         "DELETE",
                         "OPTIONS"
                 )

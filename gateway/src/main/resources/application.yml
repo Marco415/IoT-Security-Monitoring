@@ -32,6 +32,7 @@ spring:
                   - GET
                   - POST
                   - PUT
+                  - PATCH
                   - DELETE
                   - OPTIONS
 
@@ -51,11 +52,21 @@ spring:
             # =================================================
 
             - id: device-service
-
               uri: lb://device-service
-
               predicates:
                 - Path=/api/devices/**
+
+
+            # =================================================
+            # DEVICE SERVICE - OPENAPI
+            # =================================================
+
+            - id: device-service-openapi
+              uri: lb://device-service
+              predicates:
+                - Path=/device-service/v3/api-docs
+              filters:
+                - RewritePath=/device-service/v3/api-docs, /v3/api-docs
 
 
             # =================================================
@@ -63,11 +74,21 @@ spring:
             # =================================================
 
             - id: event-service
-
               uri: lb://event-service
-
               predicates:
                 - Path=/api/events/**
+
+
+            # =================================================
+            # EVENT SERVICE - OPENAPI
+            # =================================================
+
+            - id: event-service-openapi
+              uri: lb://event-service
+              predicates:
+                - Path=/event-service/v3/api-docs
+              filters:
+                - RewritePath=/event-service/v3/api-docs, /v3/api-docs
 
 
             # =================================================
@@ -75,11 +96,21 @@ spring:
             # =================================================
 
             - id: auth-service
-
               uri: lb://auth-service
-
               predicates:
                 - Path=/api/auth/**
+
+
+            # =================================================
+            # AUTH SERVICE - OPENAPI
+            # =================================================
+
+            - id: auth-service-openapi
+              uri: lb://auth-service
+              predicates:
+                - Path=/auth-service/v3/api-docs
+              filters:
+                - RewritePath=/auth-service/v3/api-docs, /v3/api-docs
 
 
 # =========================================================
@@ -217,3 +248,16 @@ logging:
     com.netflix.discovery: INFO
 
     org.springframework.cloud.loadbalancer: INFO
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    urls:
+      - name: Device Service
+        url: /device-service/v3/api-docs
+
+      - name: Event Service
+        url: /event-service/v3/api-docs
+
+      - name: Auth Service
+        url: /auth-service/v3/api-docs

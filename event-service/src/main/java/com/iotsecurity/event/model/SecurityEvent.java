@@ -58,6 +58,14 @@ public class SecurityEvent {
     public SecurityEvent() {
     }
 
+    /**
+     * Automatically generates values that are required when
+     * a new security event is created.
+     *
+     * Status defaults to OPEN only when no status was supplied.
+     * This means a supplied status such as RESOLVED or CLOSED
+     * will NOT be overwritten.
+     */
     @PrePersist
     public void generateEventId() {
 
@@ -71,6 +79,8 @@ public class SecurityEvent {
 
         if (status == null || status.isBlank()) {
             status = "OPEN";
+        } else {
+            status = status.trim().toUpperCase();
         }
     }
 
@@ -139,6 +149,12 @@ public class SecurityEvent {
     }
 
     public void setStatus(String status) {
-        this.status = status;
+
+        if (status == null || status.isBlank()) {
+            this.status = null;
+            return;
+        }
+
+        this.status = status.trim().toUpperCase();
     }
 }

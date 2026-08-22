@@ -42,6 +42,14 @@ public class SecurityEventService {
                 deviceClient;
     }
 
+    /**
+     * Creates a new security event.
+     *
+     * If the request contains a status, that status is used.
+     *
+     * If the request does not contain a status, the event
+     * defaults to OPEN.
+     */
     public SecurityEvent createEvent(
             EventRequest request) {
 
@@ -50,10 +58,11 @@ public class SecurityEventService {
 
         log.info(
                 "Creating security event deviceIdentifier={} " +
-                        "eventType={} severity={} correlationId={}",
+                        "eventType={} severity={} requestedStatus={} correlationId={}",
                 request.deviceId(),
                 request.eventType(),
                 request.severity(),
+                request.status(),
                 correlationId
         );
 
@@ -64,10 +73,6 @@ public class SecurityEventService {
          *
          * - database ID
          * - actual device_id
-         *
-         * The client currently sends the database ID,
-         * so DeviceClient will resolve that ID to the
-         * actual Device object.
          */
         DeviceResponse device =
                 deviceClient.getDevice(
@@ -85,21 +90,7 @@ public class SecurityEventService {
         );
 
         /*
-         * IMPORTANT:
-         *
-         * Store the actual device_id from the Device
-         * Service rather than the PostgreSQL database ID.
-         *
-         * Example:
-         *
-         * Device database:
-         *
-         * id        = 1
-         * device_id = DEV-001
-         *
-         * Event database:
-         *
-         * device_id = DEV-001
+         * Store the actual device_id from the Device Service.
          */
         event.setDeviceId(
                 device.deviceId()
@@ -125,9 +116,24 @@ public class SecurityEventService {
                 LocalDateTime.now()
         );
 
-        event.setStatus(
-                "OPEN"
-        );
+        /*
+         * FIX:
+         *
+         * Use the status supplied by the client.
+         *
+         * If no status was supplied, default to OPEN.
+         */
+        if (request.status() == null ||
+                request.status().isBlank()) {
+
+            event.setStatus("OPEN");
+
+        } else {
+
+            event.setStatus(
+                    request.status()
+            );
+        }
 
         SecurityEvent savedEvent =
                 eventRepository.save(
@@ -201,9 +207,20 @@ public class SecurityEventService {
         );
 
         return eventRepository
-                .findByStatus(status);
+                .findByStatus(
+                        status.trim().toUpperCase()
+                );
     }
 
+    /**
+     * Updates an existing security event.
+     *
+     * The eventId, database ID and original timestamp are preserved.
+     *
+     * If request.status() is supplied, the event status is updated.
+     *
+     * If request.status() is null/blank, the existing status is kept.
+     */
     public SecurityEvent updateEvent(
             String eventId,
             EventRequest request) {
@@ -213,19 +230,16 @@ public class SecurityEventService {
 
         log.info(
                 "Updating security event eventId={} " +
-                        "eventType={} severity={} correlationId={}",
+                        "eventType={} severity={} requestedStatus={} correlationId={}",
                 eventId,
                 request.eventType(),
                 request.severity(),
+                request.status(),
                 correlationId
         );
 
         /*
          * Find the existing event using the public eventId.
-         *
-         * Example:
-         *
-         * EVT-14c75691-cc88-45af-9405-03227bdbe0f6
          */
         SecurityEvent event =
                 eventRepository
@@ -240,13 +254,6 @@ public class SecurityEventService {
 
         /*
          * Verify that the supplied device exists.
-         *
-         * EventRequest.deviceId() may contain either:
-         *
-         * - PostgreSQL device ID
-         * - actual device_id
-         *
-         * DeviceClient resolves it.
          */
         DeviceResponse device =
                 deviceClient.getDevice(
@@ -277,12 +284,44 @@ public class SecurityEventService {
         );
 
         /*
+         * FIX:
+         *
+         * Previously status was explicitly excluded from
+         * normal event updates.
+         *
+         * It is now updated when the client supplies one.
+         *
+         * If the client does not supply a status, the existing
+         * status is preserved.
+         */
+        if (request.status() != null &&
+                !request.status().isBlank()) {
+
+            String oldStatus = event.getStatus();
+
+            String newStatus =
+                    request.status()
+                            .trim()
+                            .toUpperCase();
+
+            event.setStatus(newStatus);
+
+            log.info(
+                    "Security event status changed " +
+                            "eventId={} oldStatus={} newStatus={} correlationId={}",
+                    eventId,
+                    oldStatus,
+                    newStatus,
+                    correlationId
+            );
+        }
+
+        /*
          * Do NOT change:
          *
          * - id
          * - eventId
          * - timestamp
-         * - status
          *
          * during a normal event update.
          */
@@ -303,6 +342,13 @@ public class SecurityEventService {
         return updatedEvent;
     }
 
+    /**
+     * Updates only the status of an existing event.
+     *
+     * Used by:
+     *
+     * PATCH /api/events/{eventId}/status?status=RESOLVED
+     */
     public SecurityEvent updateStatus(
             String eventId,
             String status) {
@@ -314,22 +360,34 @@ public class SecurityEventService {
                 status
         );
 
+        if (status == null || status.isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "Status is required."
+            );
+        }
+
         SecurityEvent event =
                 getEventByEventId(eventId);
 
+        String normalizedStatus =
+                status.trim().toUpperCase();
+
+        String oldStatus =
+                event.getStatus();
+
         event.setStatus(
-                status.toUpperCase()
+                normalizedStatus
         );
 
         SecurityEvent updatedEvent =
-                eventRepository.save(
-                        event
-                );
+                eventRepository.save(event);
 
         log.info(
                 "Security event status updated " +
-                        "eventId={} status={}",
+                        "eventId={} oldStatus={} newStatus={}",
                 updatedEvent.getEventId(),
+                oldStatus,
                 updatedEvent.getStatus()
         );
 

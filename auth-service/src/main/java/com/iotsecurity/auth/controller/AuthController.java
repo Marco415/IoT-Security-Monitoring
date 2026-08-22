@@ -7,6 +7,7 @@ import com.iotsecurity.auth.entity.User;
 import com.iotsecurity.auth.repository.AuthEventRepository;
 import com.iotsecurity.auth.repository.UserRepository;
 import com.iotsecurity.auth.security.JwtService;
+import com.iotsecurity.auth.dto.RegisterRequest;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -23,11 +24,25 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import org.springframework.web.bind.annotation.*;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
+
 import java.time.LocalDateTime;
 
+@Tag(
+        name = "Authentication",
+        description = "User authentication and account management operations"
+)
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -58,6 +73,20 @@ public class AuthController {
         this.passwordEncoder = passwordEncoder;
     }
 
+    @Operation(
+            summary = "Authenticate user",
+            description = "Authenticates a user and returns a JWT access token."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Authentication successful"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Invalid username or password"
+            )
+    })
     @PostMapping("/login")
     public ResponseEntity<?> login(
             @Valid @RequestBody LoginRequest request,
@@ -160,19 +189,52 @@ public class AuthController {
         }
     }
 
+    @Operation(
+            summary = "Register user",
+            description = "Registers a new user account. Only administrators may register new users."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "201",
+                    description = "User registered successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid registration data"
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Only administrators may register users"
+            ),
+            @ApiResponse(
+                    responseCode = "409",
+                    description = "Username already exists"
+            )
+    })
+    @SecurityRequirement(name = "bearerAuth")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/register")
     public ResponseEntity<?> register(
-            @Valid @RequestBody LoginRequest request,
+            @Valid @RequestBody RegisterRequest request,
             HttpServletRequest httpRequest
     ) {
 
-        String username = request.getUsername().trim();
-        String sourceIp = getClientIp(httpRequest);
-        String correlationId = MDC.get(CORRELATION_ID);
+        String username =
+                request.username().trim();
+
+        String role =
+                request.role().trim().toUpperCase();
+
+        String sourceIp =
+                getClientIp(httpRequest);
+
+        String correlationId =
+                MDC.get(CORRELATION_ID);
 
         log.info(
-                "Registration attempt username={} sourceIp={} correlationId={}",
+                "Registration attempt username={} role={} sourceIp={} correlationId={}",
                 username,
+                role,
                 sourceIp,
                 correlationId
         );
@@ -204,9 +266,9 @@ public class AuthController {
             User user = new User(
                     username,
                     passwordEncoder.encode(
-                            request.getPassword()
+                            request.password()
                     ),
-                    "USER",
+                    role,
                     true
             );
 
@@ -220,8 +282,9 @@ public class AuthController {
             );
 
             log.info(
-                    "User registered successfully username={} sourceIp={} correlationId={}",
+                    "User registered successfully username={} role={} sourceIp={} correlationId={}",
                     username,
+                    role,
                     sourceIp,
                     correlationId
             );
@@ -234,8 +297,9 @@ public class AuthController {
 
             log.error(
                     "Unexpected error during user registration " +
-                            "username={} sourceIp={} correlationId={}",
+                            "username={} role={} sourceIp={} correlationId={}",
                     username,
+                    role,
                     sourceIp,
                     correlationId,
                     ex
@@ -247,6 +311,21 @@ public class AuthController {
         }
     }
 
+    @Operation(
+            summary = "Get current authenticated user",
+            description = "Returns information about the currently authenticated user."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Authenticated user retrieved successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Authentication required"
+            )
+    })
+    @SecurityRequirement(name = "bearerAuth")
     @GetMapping("/me")
     public ResponseEntity<?> currentUser() {
 
