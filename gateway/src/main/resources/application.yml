@@ -113,6 +113,28 @@ spring:
                 - RewritePath=/auth-service/v3/api-docs, /v3/api-docs
 
 
+            # =================================================
+            # SOC SERVICE
+            # =================================================
+
+            - id: soc-service
+              uri: lb://soc-service
+              predicates:
+                - Path=/api/soc/**
+
+
+            # =================================================
+            # SOC SERVICE - OPENAPI
+            # =================================================
+
+            - id: soc-service-openapi
+              uri: lb://soc-service
+              predicates:
+                - Path=/soc-service/v3/api-docs
+              filters:
+                - RewritePath=/soc-service/v3/api-docs, /v3/api-docs
+
+
 # =========================================================
 # SERVER
 # =========================================================

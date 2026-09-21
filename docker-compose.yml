@@ -234,6 +234,41 @@ services:
 
 
   # =========================================================
+  # SOC DATABASE
+  # =========================================================
+
+  soc-db:
+    image: postgres:18
+    container_name: soc-db
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ${SOC_DB}
+      POSTGRES_USER: ${SOC_DB_USER}
+      POSTGRES_PASSWORD: ${SOC_DB_PASSWORD}
+
+    ports:
+      - "5436:5432"
+
+    volumes:
+      - soc-db-data:/var/lib/postgresql
+
+    networks:
+      - iot-network
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${SOC_DB_USER} -d ${SOC_DB}"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+
+  # =========================================================
   # DEVICE SERVICE
   # =========================================================
 
@@ -407,6 +442,62 @@ services:
 
 
   # =========================================================
+  # SOC SERVICE
+  # =========================================================
+
+  soc-service:
+    build:
+      context: ./phase2/soc-service
+
+    container_name: soc-service
+    restart: unless-stopped
+
+    ports:
+      - "8084:8084"
+
+    environment:
+      SERVER_PORT: 8084
+
+      SPRING_DATASOURCE_URL: jdbc:postgresql://soc-db:5432/soc_db
+      SPRING_DATASOURCE_USERNAME: soc_user
+      SPRING_DATASOURCE_PASSWORD: soc_password
+
+      LOGSTASH_HOST: logstash
+      LOGSTASH_PORT: 5000
+
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+
+    depends_on:
+      soc-db:
+        condition: service_healthy
+
+      eureka-server:
+        condition: service_healthy
+
+      logstash:
+        condition: service_healthy
+
+    networks:
+      - iot-network
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-f",
+          "http://localhost:8084/actuator/health"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+    volumes:
+      - ./logs:/logs
+
+
+  # =========================================================
   # API GATEWAY
   # =========================================================
 
@@ -483,6 +574,9 @@ volumes:
 
   auth-db-data:
     name: iot-auth-db-data
+
+  soc-db-data:
+    name: iot-soc-db-data
 
 
 # =========================================================

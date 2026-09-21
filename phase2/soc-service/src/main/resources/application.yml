@@ -1,0 +1,70 @@
+spring:
+  application:
+    name: soc-service
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5436/soc_db}
+    username: ${SPRING_DATASOURCE_USERNAME:soc_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:soc_password}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+
+server:
+  port: ${SERVER_PORT:8084}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://localhost:8761/eureka/}
+    register-with-eureka: true
+    fetch-registry: true
+
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${server.port}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+
+  endpoint:
+    health:
+      show-details: always
+
+info:
+  app:
+    name: SOC Service
+    description: IoT Security Monitoring SOC Service
+    version: 0.0.1
+
+logging:
+  file:
+    name: ${LOGGING_FILE_NAME:/logs/soc-service.log}
+
+  structured:
+    format:
+      file: logstash
+
+  level:
+    root: INFO
+    com.iotsecurity.soc: INFO
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+    display-request-duration: true
+    persist-authorization: true
+  show-actuator: true
