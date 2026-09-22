@@ -18,8 +18,7 @@ public class OpenApiConfig {
                 .info(new Info()
                         .title("IoT Security Monitoring - Event Service API")
                         .description(
-                                "REST API for creating, retrieving, searching, " +
-                                        "updating and deleting IoT security events."
+                                "Security event and SOC alert management API."
                         )
                         .version("1.0.0")
                         .contact(new Contact()

@@ -16,6 +16,12 @@ spring:
       hibernate:
         format_sql: true
 
+  neo4j:
+    uri: bolt://host.docker.internal:7687
+    authentication:
+      username: ${SPRING_NEO4J_USERNAME:neo4j}
+      password: ${SPRING_NEO4J_PASSWORD}
+
 server:
   port: ${SERVER_PORT:8084}
 
