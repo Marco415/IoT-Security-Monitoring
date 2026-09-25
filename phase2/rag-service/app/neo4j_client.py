@@ -1,37 +1,47 @@
 from neo4j import GraphDatabase
 
-from .config import settings
+from app.config import (
+    NEO4J_URI,
+    NEO4J_USERNAME,
+    NEO4J_PASSWORD,
+    NEO4J_DATABASE,
+)
 
 
 class Neo4jClient:
 
     def __init__(self):
         self.driver = GraphDatabase.driver(
-            settings.neo4j_uri,
+            NEO4J_URI,
             auth=(
-                settings.neo4j_username,
-                settings.neo4j_password
+                NEO4J_USERNAME,
+                NEO4J_PASSWORD
             )
         )
-
-    def verify_connection(self) -> bool:
-        try:
-            self.driver.verify_connectivity()
-            return True
-        except Exception:
-            return False
 
     def close(self):
         self.driver.close()
 
-    def execute_query(
+    def verify_connection(self):
+        with self.driver.session(
+            database=NEO4J_DATABASE
+        ) as session:
+
+            result = session.run(
+                "RETURN 1 AS value"
+            )
+
+            record = result.single()
+
+            return record["value"] == 1
+
+    def run_query(
         self,
         query: str,
         parameters: dict | None = None
-    ) -> list[dict]:
-
+    ):
         with self.driver.session(
-            database=settings.neo4j_database
+            database=NEO4J_DATABASE
         ) as session:
 
             result = session.run(
@@ -43,6 +53,3 @@ class Neo4jClient:
                 record.data()
                 for record in result
             ]
-
-
-neo4j_client = Neo4jClient()

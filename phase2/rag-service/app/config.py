@@ -1,25 +1,44 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
+import os
+
+from dotenv import load_dotenv
 
 
-class Settings(BaseSettings):
+load_dotenv()
 
-    app_name: str = "Security Knowledge Graph RAG"
-    app_version: str = "1.0.0"
-    app_port: int = 8092
 
-    neo4j_uri: str
-    neo4j_username: str
-    neo4j_password: str
-    neo4j_database: str = "neo4j"
+NEO4J_URI = os.getenv(
+    "NEO4J_URI",
+    "bolt://localhost:7687"
+)
 
-    ollama_url: str
-    ollama_model: str = "qwen3"
-    ollama_timeout: int = 120
+NEO4J_USERNAME = os.getenv(
+    "NEO4J_USERNAME",
+    "neo4j"
+)
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        case_sensitive=False
+NEO4J_PASSWORD = os.getenv(
+    "NEO4J_PASSWORD",
+    "password"
+)
+
+NEO4J_DATABASE = os.getenv(
+    "NEO4J_DATABASE",
+    "neo4j"
+)
+
+OLLAMA_URL = os.getenv(
+    "OLLAMA_URL",
+    "http://localhost:11434"
+)
+
+OLLAMA_MODEL = os.getenv(
+    "OLLAMA_MODEL",
+    "qwen3"
+)
+
+OLLAMA_TIMEOUT = int(
+    os.getenv(
+        "OLLAMA_TIMEOUT",
+        "120"
     )
-
-
-settings = Settings()
+)

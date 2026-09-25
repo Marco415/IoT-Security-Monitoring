@@ -1,48 +1,34 @@
-import httpx
+import requests
 
-from .config import settings
+from app.config import (
+    OLLAMA_URL,
+    OLLAMA_MODEL,
+    OLLAMA_TIMEOUT,
+)
 
 
 class OllamaClient:
 
-    def __init__(self):
-
-        self.url = (
-            f"{settings.ollama_url.rstrip('/')}"
-            "/api/generate"
-        )
-
-    async def generate(
+    def generate(
         self,
         prompt: str
     ) -> str:
 
-        payload = {
-            "model": settings.ollama_model,
-            "prompt": prompt,
-            "stream": False,
-            "options": {
-                "temperature": 0.1
-            }
-        }
+        response = requests.post(
+            f"{OLLAMA_URL}/api/generate",
+            json={
+                "model": OLLAMA_MODEL,
+                "prompt": prompt,
+                "stream": False
+            },
+            timeout=OLLAMA_TIMEOUT
+        )
 
-        async with httpx.AsyncClient(
-            timeout=settings.ollama_timeout
-        ) as client:
+        response.raise_for_status()
 
-            response = await client.post(
-                self.url,
-                json=payload
-            )
+        data = response.json()
 
-            response.raise_for_status()
-
-            data = response.json()
-
-            return data.get(
-                "response",
-                ""
-            ).strip()
-
-
-ollama_client = OllamaClient()
+        return data.get(
+            "response",
+            ""
+        ).strip()
