@@ -135,6 +135,28 @@ spring:
                 - RewritePath=/soc-service/v3/api-docs, /v3/api-docs
 
 
+            # =================================================
+            # RAG SERVICE
+            # =================================================
+
+            - id: rag-service
+              uri: http://rag-service:8092
+              predicates:
+                - Path=/api/rag/**
+
+
+            # =================================================
+            # RAG SERVICE - OPENAPI
+            # =================================================
+
+            - id: rag-service-openapi
+              uri: http://rag-service:8092
+              predicates:
+                - Path=/rag-service/v3/api-docs
+              filters:
+                - RewritePath=/rag-service/v3/api-docs, /v3/api-docs
+
+
 # =========================================================
 # SERVER
 # =========================================================

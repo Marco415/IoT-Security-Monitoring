@@ -502,6 +502,46 @@ services:
 
 
   # =========================================================
+  # RAG SERVICE
+  # =========================================================
+
+  rag-service:
+    build:
+      context: ./phase2/rag-service
+      dockerfile: Dockerfile
+
+    container_name: rag-service
+
+    ports:
+      - "8092:8092"
+
+    env_file:
+      - ./phase2/rag-service/.env
+
+    environment:
+      NEO4J_URI: bolt://host.docker.internal:7687
+      OLLAMA_URL: http://host.docker.internal:11434
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    restart: unless-stopped
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8092/health')"
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+
+  # =========================================================
   # API GATEWAY
   # =========================================================
 

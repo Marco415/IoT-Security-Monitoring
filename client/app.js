@@ -4003,4 +4003,149 @@ document.addEventListener(
         }
 
     }
+
+);
+
+const RAG_API_BASE_URL = "http://localhost:8092";
+
+
+async function askRAGQuestion() {
+
+    const questionElement =
+        document.getElementById("rag-question");
+
+    const answerElement =
+        document.getElementById("rag-answer");
+
+    const methodElement =
+        document.getElementById("rag-method");
+
+    const nodesElement =
+        document.getElementById("rag-nodes");
+
+    const relationshipsElement =
+        document.getElementById("rag-relationships");
+
+    const question =
+        questionElement.value.trim();
+
+    if (!question) {
+
+        answerElement.textContent =
+            "Please enter a question.";
+
+        return;
+    }
+
+    answerElement.textContent =
+        "Retrieving graph evidence and generating answer...";
+
+    methodElement.textContent = "";
+
+    nodesElement.innerHTML = "";
+
+    relationshipsElement.innerHTML = "";
+
+    try {
+
+        const response = await fetch(
+            `${RAG_API_BASE_URL}/api/rag/ask`,
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify({
+                    question: question
+                })
+            }
+        );
+
+        if (!response.ok) {
+
+            const errorText =
+                await response.text();
+
+            throw new Error(
+                errorText
+            );
+        }
+
+        const data =
+            await response.json();
+
+        answerElement.textContent =
+            data.answer;
+
+        methodElement.textContent =
+            `Retrieval method: ${data.retrieval_method}`;
+
+        data.evidence_nodes.forEach(
+            node => {
+
+                const li =
+                    document.createElement("li");
+
+                const properties =
+                    JSON.stringify(
+                        node.properties,
+                        null,
+                        2
+                    );
+
+                li.textContent =
+                    `${node.label}: ${properties}`;
+
+                nodesElement.appendChild(li);
+            }
+        );
+
+        data.evidence_relationships.forEach(
+            relationship => {
+
+                const li =
+                    document.createElement("li");
+
+                li.textContent =
+                    `${relationship.source} `
+                    + `${relationship.relationship} `
+                    + `${relationship.target}`;
+
+                relationshipsElement.appendChild(li);
+            }
+        );
+
+    } catch (error) {
+
+        console.error(
+            "RAG error:",
+            error
+        );
+
+        answerElement.textContent =
+            `RAG request failed: ${error.message}`;
+    }
+}
+
+
+document.addEventListener(
+    "DOMContentLoaded",
+    () => {
+
+        const button =
+            document.getElementById(
+                "rag-ask-button"
+            );
+
+        if (button) {
+
+            button.addEventListener(
+                "click",
+                askRAGQuestion
+            );
+        }
+
+    }
 );

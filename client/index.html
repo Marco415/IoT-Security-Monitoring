@@ -784,6 +784,59 @@
 
 
     <!-- =====================================================
+         GRAPH RAG
+         ===================================================== -->
+
+
+    <section id="rag-section" class="panel">
+
+        <h2>Security Knowledge Graph RAG</h2>
+
+        <p>
+            Ask a natural-language question about the security
+            knowledge graph.
+        </p>
+
+        <textarea
+            id="rag-question"
+            rows="4"
+            placeholder="Why was alert-001 created and what should be done?"
+        ></textarea>
+
+        <button id="rag-ask-button">
+            Ask
+        </button>
+
+        <div id="rag-answer-container">
+
+            <h3>Answer</h3>
+
+            <div id="rag-answer">
+                No question asked yet.
+            </div>
+
+        </div>
+
+        <div id="rag-evidence-container">
+
+            <h3>Evidence</h3>
+
+            <div id="rag-method"></div>
+
+            <h4>Retrieved Nodes</h4>
+
+            <ul id="rag-nodes"></ul>
+
+            <h4>Retrieved Relationships</h4>
+
+            <ul id="rag-relationships"></ul>
+
+        </div>
+
+    </section>
+
+
+    <!-- =====================================================
          SYSTEM STATUS
          ===================================================== -->
 

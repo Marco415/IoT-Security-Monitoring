@@ -17,10 +17,10 @@ spring:
         format_sql: true
 
   neo4j:
-    uri: bolt://host.docker.internal:7687
+    uri: ${SPRING_NEO4J_URI:bolt://localhost:7687}
     authentication:
-      username: ${SPRING_NEO4J_USERNAME:neo4j}
-      password: ${SPRING_NEO4J_PASSWORD}
+      username: ${SPRING_NEO4J_AUTHENTICATION_USERNAME:neo4j}
+      password: ${SPRING_NEO4J_AUTHENTICATION_PASSWORD:neo4jgraph}
 
 server:
   port: ${SERVER_PORT:8084}
@@ -67,10 +67,12 @@ logging:
 springdoc:
   api-docs:
     path: /v3/api-docs
+
   swagger-ui:
     path: /swagger-ui.html
     operations-sorter: method
     tags-sorter: alpha
     display-request-duration: true
     persist-authorization: true
+
   show-actuator: true
