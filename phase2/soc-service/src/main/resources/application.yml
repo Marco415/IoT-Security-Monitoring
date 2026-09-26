@@ -2,6 +2,10 @@ spring:
   application:
     name: soc-service
 
+  cloud:
+    loadbalancer:
+      enabled: false
+
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://soc-db:5432/soc_db}
     username: ${SPRING_DATASOURCE_USERNAME:soc_user}
@@ -31,6 +35,14 @@ soc:
   collector:
     auth:
       fixed-delay-ms: ${SOC_AUTH_COLLECTOR_DELAY_MS:5000}
+
+    event-service:
+      enabled: ${SOC_EVENT_SERVICE_COLLECTOR_ENABLED:true}
+      poll-interval-ms: ${SOC_EVENT_SERVICE_POLL_INTERVAL_MS:10000}
+      batch-size: ${SOC_EVENT_SERVICE_BATCH_SIZE:100}
+
+  event-service:
+    internal-api-key: ${SOC_INTERNAL_API_KEY:change-this-internal-soc-key}
 
   services:
     gateway-url: ${SOC_GATEWAY_URL:http://gateway:8090/actuator/health}

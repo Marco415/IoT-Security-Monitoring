@@ -1,5 +1,6 @@
 package com.iotsecurity.event.service;
 
+import com.iotsecurity.event.dto.InternalSecurityEventResponse;
 import com.iotsecurity.event.client.DeviceClient;
 import com.iotsecurity.event.dto.DeviceResponse;
 import com.iotsecurity.event.dto.EventRequest;
@@ -10,6 +11,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -413,5 +417,127 @@ public class SecurityEventService {
                 "Security event deleted eventId={}",
                 eventId
         );
+    }
+
+    /** * Retrieves security events for trusted SOC consumers.
+     * * * The SOC never accesses event_db directly.
+     * * It calls event-service, and event-service reads its own database.
+     * */
+    public List<InternalSecurityEventResponse> getEventsForSoc(
+            Long afterId,
+            int limit
+    ) {
+        if (afterId == null || afterId < 0) {
+            afterId = 0L;
+        }
+
+        /*
+         * Protect the service from an excessively large request.
+         */
+        int safeLimit =
+                Math.min(
+                        Math.max(limit, 1),
+                        500
+                );
+
+        /*
+         * Retrieve events after the last SOC checkpoint.
+         *
+         * Results are ordered by the database primary key so that
+         * the SOC can safely use the highest ID as its next checkpoint.
+         */
+        Pageable pageable =
+                PageRequest.of(
+                        0,
+                        safeLimit,
+                        Sort.by(
+                                Sort.Direction.ASC,
+                                "id"
+                        )
+                );
+
+        log.info(
+                "SOC event retrieval requested " +
+                        "afterId={} limit={}",
+                afterId,
+                safeLimit
+        );
+
+        List<SecurityEvent> events =
+                eventRepository.findByIdGreaterThanOrderByIdAsc(
+                        afterId,
+                        pageable
+                );
+
+        List<InternalSecurityEventResponse> response =
+                events.stream()
+                        .map(this::toInternalResponse)
+                        .toList();
+
+        log.info(
+                "SOC event retrieval completed " +
+                        "afterId={} resultCount={} " +
+                        "lastEventId={}",
+                afterId,
+                response.size(),
+                events.isEmpty()
+                        ? null
+                        : events.get(events.size() - 1).getId()
+        );
+
+        return response;
+    }
+
+    private InternalSecurityEventResponse toInternalResponse(
+            SecurityEvent event
+    ) {
+        InternalSecurityEventResponse response =
+                new InternalSecurityEventResponse();
+
+        response.setId(
+                event.getId()
+        );
+
+        response.setEventId(
+                event.getEventId()
+        );
+
+        response.setDescription(
+                event.getDescription()
+        );
+
+        response.setDeviceId(
+                event.getDeviceId() != null
+                        ? event.getDeviceId().toString()
+                        : null
+        );
+
+        response.setEventType(
+                event.getEventType() != null
+                        ? event.getEventType().toString()
+                        : null
+        );
+
+        response.setSeverity(
+                event.getSeverity() != null
+                        ? event.getSeverity().toString()
+                        : null
+        );
+
+        response.setSourceIp(
+                event.getSourceIp()
+        );
+
+        response.setStatus(
+                event.getStatus() != null
+                        ? event.getStatus().toString()
+                        : null
+        );
+
+        response.setTimestamp(
+                event.getTimestamp()
+        );
+
+        return response;
     }
 }

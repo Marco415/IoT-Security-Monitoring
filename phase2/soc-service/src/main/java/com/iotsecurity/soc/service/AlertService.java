@@ -6,6 +6,7 @@ import com.iotsecurity.soc.model.SOCEvent;
 import com.iotsecurity.soc.model.Severity;
 import com.iotsecurity.soc.repository.SOCAlertRepository;
 import com.iotsecurity.soc.repository.SOCEventRepository;
+import com.iotsecurity.soc.service.DetectionEngine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -25,21 +26,19 @@ public class AlertService {
 
     private final Neo4jGraphService neo4jGraphService;
 
+    private final DetectionEngine detectionEngine;
+
 
     public AlertService(
             SOCEventRepository eventRepository,
             SOCAlertRepository alertRepository,
-            Neo4jGraphService neo4jGraphService
+            Neo4jGraphService neo4jGraphService,
+            DetectionEngine detectionEngine
     ) {
-
-        this.eventRepository =
-                eventRepository;
-
-        this.alertRepository =
-                alertRepository;
-
-        this.neo4jGraphService =
-                neo4jGraphService;
+        this.eventRepository = eventRepository;
+        this.alertRepository = alertRepository;
+        this.neo4jGraphService = neo4jGraphService;
+        this.detectionEngine = detectionEngine;
     }
 
 
@@ -91,6 +90,25 @@ public class AlertService {
                 savedEvent.getSeverity(),
                 savedEvent.getCorrelationId()
         );
+
+        try {
+
+            analyzeEvent(savedEvent);
+
+        } catch (Exception ex) {
+
+            /*
+             * Event persistence must not fail because
+             * detection failed.
+             */
+            log.error(
+                    "SOC event detection failed " +
+                            "eventId={} correlationId={}",
+                    savedEvent.getEventId(),
+                    savedEvent.getCorrelationId(),
+                    ex
+            );
+        }
 
 
         // --------------------------------------------------------
@@ -616,5 +634,49 @@ public class AlertService {
 
 
         return savedAlert;
+    }
+
+    public long getLastSourceEventId(
+            String sourceSystem
+    ) {
+        return eventRepository
+                .findTopBySourceSystemOrderBySourceEventIdDesc(
+                        sourceSystem
+                )
+                .map(event -> {
+                    if (event.getSourceEventId() == null) {
+                        return 0L;
+                    }
+                    return event.getSourceEventId();
+                })
+                .orElse(0L);
+    }
+
+    public boolean existsBySource(
+            String sourceSystem, Long sourceEventId
+    ) {
+        return eventRepository.existsBySourceSystemAndSourceEventId(
+                sourceSystem,
+                sourceEventId
+        );
+    }
+
+    public void analyzeEvent(
+            SOCEvent event
+    ) {
+
+        List<DetectionEngine.DetectionResult> detections =
+                detectionEngine.analyze(event);
+
+        for (DetectionEngine.DetectionResult detection : detections) {
+
+            createAlert(
+                    detection.rule(),
+                    detection.severity(),
+                    detection.event(),
+                    detection.eventCount(),
+                    detection.message()
+            );
+        }
     }
 }

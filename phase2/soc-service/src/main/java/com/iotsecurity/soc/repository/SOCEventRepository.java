@@ -34,4 +34,13 @@ public interface SOCEventRepository extends JpaRepository<SOCEvent, UUID> {
             String sourceSystem,
             Long sourceEventId
     );
+
+    Optional<SOCEvent> findTopBySourceSystemOrderBySourceEventIdDesc(
+            String sourceSystem
+    );
+
+    boolean existsBySourceSystemAndSourceEventId(
+            String sourceSystem,
+            Long sourceEventId
+    );
 }
