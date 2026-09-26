@@ -462,6 +462,10 @@ services:
       SPRING_DATASOURCE_USERNAME: soc_user
       SPRING_DATASOURCE_PASSWORD: soc_password
 
+      AUTH_DATASOURCE_URL: jdbc:postgresql://auth-db:5432/auth_db
+      AUTH_DATASOURCE_USERNAME: auth_user
+      AUTH_DATASOURCE_PASSWORD: auth_password
+
       SPRING_NEO4J_URI: bolt://host.docker.internal:7687
       SPRING_NEO4J_AUTHENTICATION_USERNAME: neo4j
       SPRING_NEO4J_AUTHENTICATION_PASSWORD: neo4jgraph
@@ -473,6 +477,9 @@ services:
 
     depends_on:
       soc-db:
+        condition: service_healthy
+
+      auth-db:
         condition: service_healthy
 
       eureka-server:

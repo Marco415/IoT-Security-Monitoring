@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>IoT Security Monitoring - SOC Dashboard</title>
+
+    <link
+            rel="stylesheet"
+            href="/style.css"
+    >
+</head>
+
+<body>
+
+<div class="container">
+
+    <header class="dashboard-header">
+
+        <div>
+            <h1>SOC Dashboard</h1>
+
+            <p>
+                IoT Security Monitoring System
+            </p>
+        </div>
+
+        <div class="header-actions">
+
+            <span id="connectionStatus"
+                  class="status-badge status-unknown">
+                CONNECTING
+            </span>
+
+            <button
+                    id="refreshButton"
+                    class="refresh-button">
+                Refresh
+            </button>
+
+        </div>
+
+    </header>
+
+
+    <!-- SUMMARY -->
+
+    <section class="summary-grid">
+
+        <div class="summary-card">
+
+            <div class="summary-title">
+                SOC EVENTS
+            </div>
+
+            <div
+                    id="totalEvents"
+                    class="summary-value">
+                -
+            </div>
+
+        </div>
+
+
+        <div class="summary-card">
+
+            <div class="summary-title">
+                OPEN ALERTS
+            </div>
+
+            <div
+                    id="openAlerts"
+                    class="summary-value">
+                -
+            </div>
+
+        </div>
+
+
+        <div class="summary-card">
+
+            <div class="summary-title">
+                HIGH ALERTS
+            </div>
+
+            <div
+                    id="highAlerts"
+                    class="summary-value">
+                -
+            </div>
+
+        </div>
+
+
+        <div class="summary-card">
+
+            <div class="summary-title">
+                MEDIUM ALERTS
+            </div>
+
+            <div
+                    id="mediumAlerts"
+                    class="summary-value">
+                -
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- SERVICES -->
+
+    <section class="panel">
+
+        <div class="panel-header">
+
+            <h2>Services</h2>
+
+            <span id="serviceSummary">
+                Checking...
+            </span>
+
+        </div>
+
+
+        <div
+                id="servicesContainer"
+                class="services-grid">
+        </div>
+
+    </section>
+
+
+    <!-- RECENT ALERTS -->
+
+    <section class="panel">
+
+        <div class="panel-header">
+
+            <h2>Recent Alerts</h2>
+
+            <span id="lastUpdated">
+                -
+            </span>
+
+        </div>
+
+
+        <div
+                id="alertsContainer"
+                class="alerts-container">
+
+            <div class="loading">
+                Loading alerts...
+            </div>
+
+        </div>
+
+    </section>
+
+</div>
+
+
+<script src="/app.js"></script>
+
+</body>
+</html>

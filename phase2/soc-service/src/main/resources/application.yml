@@ -3,7 +3,7 @@ spring:
     name: soc-service
 
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5436/soc_db}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://soc-db:5432/soc_db}
     username: ${SPRING_DATASOURCE_USERNAME:soc_user}
     password: ${SPRING_DATASOURCE_PASSWORD:soc_password}
     driver-class-name: org.postgresql.Driver
@@ -17,10 +17,33 @@ spring:
         format_sql: true
 
   neo4j:
-    uri: ${SPRING_NEO4J_URI:bolt://localhost:7687}
+    uri: ${SPRING_NEO4J_URI:bolt://neo4j:7687}
     authentication:
       username: ${SPRING_NEO4J_AUTHENTICATION_USERNAME:neo4j}
       password: ${SPRING_NEO4J_AUTHENTICATION_PASSWORD:neo4jgraph}
+
+  web:
+    resources:
+      static-locations:
+        - classpath:/static/
+
+auth:
+  datasource:
+    url: ${AUTH_DATASOURCE_URL:jdbc:postgresql://auth-db:5432/auth_db}
+    username: ${AUTH_DATASOURCE_USERNAME:auth_user}
+    password: ${AUTH_DATASOURCE_PASSWORD:auth_password}
+    driver-class-name: org.postgresql.Driver
+
+soc:
+  collector:
+    auth:
+      fixed-delay-ms: ${SOC_AUTH_COLLECTOR_DELAY_MS:5000}
+
+  services:
+    gateway-url: ${SOC_GATEWAY_URL:http://gateway:8090/actuator/health}
+    auth-url: ${SOC_AUTH_URL:http://auth-service:8083/actuator/health}
+    device-url: ${SOC_DEVICE_URL:http://device-service:8081/actuator/health}
+    event-url: ${SOC_EVENT_URL:http://event-service:8082/actuator/health}
 
 server:
   port: ${SERVER_PORT:8084}
@@ -28,7 +51,7 @@ server:
 eureka:
   client:
     service-url:
-      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://localhost:8761/eureka/}
+      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://eureka-server:8761/eureka/}
     register-with-eureka: true
     fetch-registry: true
 

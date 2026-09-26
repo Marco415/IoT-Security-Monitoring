@@ -1,15 +1,29 @@
 package com.iotsecurity.soc.model;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "soc_events")
+@Table(
+        name = "soc_events",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_soc_events_source_event",
+                        columnNames = {
+                                "source_system",
+                                "source_event_id"
+                        }
+                )
+        },
+        indexes = {
+                @Index(
+                        name = "idx_soc_events_source_event",
+                        columnList = "source_system, source_event_id"
+                )
+        }
+)
 public class SOCEvent {
 
     @Id
@@ -44,6 +58,10 @@ public class SOCEvent {
     private String correlationId;
 
     private String affectedEntity;
+
+    private Long sourceEventId;
+
+    private String sourceSystem;
 
     public SOCEvent() {
     }
@@ -180,5 +198,21 @@ public class SOCEvent {
 
     public void setAffectedEntity(String affectedEntity) {
         this.affectedEntity = affectedEntity;
+    }
+
+    public Long getSourceEventId() {
+        return sourceEventId;
+    }
+
+    public void setSourceEventId(Long sourceEventId) {
+        this.sourceEventId = sourceEventId;
+    }
+
+    public String getSourceSystem() {
+        return sourceSystem;
+    }
+
+    public void setSourceSystem(String sourceSystem) {
+        this.sourceSystem = sourceSystem;
     }
 }

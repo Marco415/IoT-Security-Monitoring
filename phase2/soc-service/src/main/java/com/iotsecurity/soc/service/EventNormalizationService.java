@@ -73,4 +73,49 @@ public class EventNormalizationService {
 
         return event;
     }
+
+    public SOCEvent normalize(
+            EventRequest request,
+            String sourceSystem,
+            Long sourceEventId
+    ) {
+        LocalDateTime timestamp =
+                request.timestamp() != null
+                        ? request.timestamp()
+                        : LocalDateTime.now();
+
+        SOCEvent event = new SOCEvent(
+                UUID.randomUUID(),
+                timestamp,
+                request.serviceName(),
+                request.eventType(),
+                request.severity(),
+                request.userId(),
+                request.sourceIp(),
+                request.endpoint(),
+                request.httpMethod(),
+                request.statusCode(),
+                request.message(),
+                request.correlationId(),
+                request.affectedEntity()
+        );
+
+        event.setSourceSystem(sourceSystem);
+        event.setSourceEventId(sourceEventId);
+
+        log.info(
+                "Normalized SOC event: eventId={}, sourceSystem={}, sourceEventId={}, " +
+                        "eventType={}, severity={}, userId={}, sourceIp={}, correlationId={}",
+                event.getEventId(),
+                sourceSystem,
+                sourceEventId,
+                event.getEventType(),
+                event.getSeverity(),
+                event.getUserId(),
+                event.getSourceIp(),
+                event.getCorrelationId()
+        );
+
+        return event;
+    }
 }
