@@ -125,3 +125,6 @@ springdoc:
     display-request-duration: true
     persist-authorization: true
   show-actuator: true
+
+security:
+  internal-service-key: ${INTERNAL_SERVICE_KEY:change-this-internal-development-key}

@@ -1,20 +1,20 @@
 package com.iotsecurity.soc.collector;
 
+import com.iotsecurity.soc.client.AuthServiceClient;
+import com.iotsecurity.soc.client.AuthServiceClient.AuthEventResponse;
 import com.iotsecurity.soc.dto.EventRequest;
 import com.iotsecurity.soc.model.SOCEvent;
 import com.iotsecurity.soc.repository.SOCEventRepository;
 import com.iotsecurity.soc.service.AlertService;
 import com.iotsecurity.soc.service.DetectionEngine;
 import com.iotsecurity.soc.service.EventNormalizationService;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.jdbc.core.JdbcTemplate;
+
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import java.sql.ResultSet;
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Component
@@ -23,23 +23,23 @@ public class AuthEventCollector {
     private static final Logger log =
             LoggerFactory.getLogger(AuthEventCollector.class);
 
-    private static final String SOURCE_SYSTEM = "auth-service";
+    private static final String SOURCE_SYSTEM =
+            "auth-service";
 
-    private final JdbcTemplate authJdbcTemplate;
+    private final AuthServiceClient authServiceClient;
     private final SOCEventRepository socEventRepository;
     private final EventNormalizationService normalizationService;
     private final AlertService alertService;
     private final DetectionEngine detectionEngine;
 
     public AuthEventCollector(
-            @Qualifier("authJdbcTemplate")
-            JdbcTemplate authJdbcTemplate,
+            AuthServiceClient authServiceClient,
             SOCEventRepository socEventRepository,
             EventNormalizationService normalizationService,
             AlertService alertService,
             DetectionEngine detectionEngine
     ) {
-        this.authJdbcTemplate = authJdbcTemplate;
+        this.authServiceClient = authServiceClient;
         this.socEventRepository = socEventRepository;
         this.normalizationService = normalizationService;
         this.alertService = alertService;
@@ -47,49 +47,26 @@ public class AuthEventCollector {
     }
 
     @Scheduled(
-            fixedDelayString = "${soc.collector.auth.fixed-delay-ms:5000}"
+            fixedDelayString =
+                    "${soc.collector.auth.fixed-delay-ms:5000}"
     )
     public void collectAuthEvents() {
 
-        log.info("Running Auth event collector");
-
-        String sql = """
-                SELECT
-                    id,
-                    event_type,
-                    username,
-                    source_ip,
-                    timestamp,
-                    result,
-                    service
-                FROM auth_events
-                ORDER BY id ASC
-                """;
+        log.info(
+                "Running Auth event collector"
+        );
 
         try {
 
-            List<AuthEventRecord> records =
-                    authJdbcTemplate.query(
-                            sql,
-                            (ResultSet rs, int rowNum) ->
-                                    new AuthEventRecord(
-                                            rs.getLong("id"),
-                                            rs.getString("event_type"),
-                                            rs.getString("username"),
-                                            rs.getString("source_ip"),
-                                            rs.getTimestamp("timestamp")
-                                                    .toLocalDateTime(),
-                                            rs.getString("result"),
-                                            rs.getString("service")
-                                    )
-                    );
+            List<AuthEventResponse> records =
+                    authServiceClient.getAuthEvents();
 
             log.info(
-                    "Auth event collector found {} records",
+                    "Auth event collector received {} records",
                     records.size()
             );
 
-            for (AuthEventRecord record : records) {
+            for (AuthEventResponse record : records) {
                 processRecord(record);
             }
 
@@ -103,10 +80,13 @@ public class AuthEventCollector {
         }
     }
 
-    private void processRecord(AuthEventRecord record) {
+    private void processRecord(
+            AuthEventResponse record
+    ) {
 
         log.info(
-                "Checking Auth event: sourceEventId={}, eventType={}, username={}, result={}",
+                "Checking Auth event: sourceEventId={}, " +
+                        "eventType={}, username={}, result={}",
                 record.id(),
                 record.eventType(),
                 record.username(),
@@ -114,15 +94,17 @@ public class AuthEventCollector {
         );
 
         var existingEvent =
-                socEventRepository.findBySourceSystemAndSourceEventId(
-                        SOURCE_SYSTEM,
-                        record.id()
-                );
+                socEventRepository
+                        .findBySourceSystemAndSourceEventId(
+                                SOURCE_SYSTEM,
+                                record.id()
+                        );
 
         if (existingEvent.isPresent()) {
 
             log.info(
-                    "Auth event already exists in SOC database: sourceEventId={}, socEventId={}",
+                    "Auth event already exists in SOC database: " +
+                            "sourceEventId={}, socEventId={}",
                     record.id(),
                     existingEvent.get().getEventId()
             );
@@ -130,7 +112,8 @@ public class AuthEventCollector {
             return;
         }
 
-        EventRequest request = mapToEventRequest(record);
+        EventRequest request =
+                mapToEventRequest(record);
 
         SOCEvent event =
                 normalizationService.normalize(
@@ -139,14 +122,16 @@ public class AuthEventCollector {
                         record.id()
                 );
 
-        SOCEvent savedEvent = alertService.saveEvent(event);
+        SOCEvent savedEvent =
+                alertService.saveEvent(event);
 
         detectionEngine.analyze(savedEvent);
 
         log.info(
                 "Auth event collected into SOC database: " +
-                        "sourceEventId={}, socEventId={}, eventType={}, " +
-                        "severity={}, username={}, result={}",
+                        "sourceEventId={}, socEventId={}, " +
+                        "eventType={}, severity={}, " +
+                        "username={}, result={}",
                 record.id(),
                 savedEvent.getEventId(),
                 savedEvent.getEventType(),
@@ -157,20 +142,27 @@ public class AuthEventCollector {
     }
 
     private EventRequest mapToEventRequest(
-            AuthEventRecord record
+            AuthEventResponse record
     ) {
 
         boolean failedLogin =
-                "LOGIN".equalsIgnoreCase(record.eventType())
-                        && "FAILURE".equalsIgnoreCase(record.result());
+                "LOGIN".equalsIgnoreCase(
+                        record.eventType()
+                )
+                        &&
+                        "FAILURE".equalsIgnoreCase(
+                                record.result()
+                        );
 
-        String eventType = failedLogin
-                ? "FAILED_LOGIN"
-                : mapEventType(record);
+        String eventType =
+                failedLogin
+                        ? "FAILED_LOGIN"
+                        : mapEventType(record);
 
-        String severity = failedLogin
-                ? "HIGH"
-                : "LOW";
+        String severity =
+                failedLogin
+                        ? "HIGH"
+                        : "LOW";
 
         String message =
                 "Authentication event: "
@@ -189,35 +181,34 @@ public class AuthEventCollector {
                 "POST",
                 failedLogin ? 401 : 200,
                 message,
-                SOURCE_SYSTEM + ":auth-event:" + record.id(),
+                SOURCE_SYSTEM
+                        + ":auth-event:"
+                        + record.id(),
                 "user:" + record.username()
         );
     }
 
     private String mapEventType(
-            AuthEventRecord record
+            AuthEventResponse record
     ) {
 
-        if ("REGISTER".equalsIgnoreCase(record.eventType())) {
+        if ("REGISTER".equalsIgnoreCase(
+                record.eventType()
+        )) {
             return "OTHER";
         }
 
-        if ("LOGIN".equalsIgnoreCase(record.eventType())
-                && "SUCCESS".equalsIgnoreCase(record.result())) {
+        if ("LOGIN".equalsIgnoreCase(
+                record.eventType()
+        )
+                &&
+                "SUCCESS".equalsIgnoreCase(
+                        record.result()
+                )) {
+
             return "OTHER";
         }
 
         return "OTHER";
-    }
-
-    private record AuthEventRecord(
-            Long id,
-            String eventType,
-            String username,
-            String sourceIp,
-            LocalDateTime timestamp,
-            String result,
-            String service
-    ) {
     }
 }

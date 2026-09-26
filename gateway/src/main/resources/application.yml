@@ -140,7 +140,7 @@ spring:
             # =================================================
 
             - id: rag-service
-              uri: http://rag-service:8092
+              uri: lb://rag-service
               predicates:
                 - Path=/api/rag/**
 
@@ -150,11 +150,11 @@ spring:
             # =================================================
 
             - id: rag-service-openapi
-              uri: http://rag-service:8092
+              uri: lb://rag-service
               predicates:
-                - Path=/rag-service/v3/api-docs
+                - Path=/rag-service/openapi.json
               filters:
-                - RewritePath=/rag-service/v3/api-docs, /v3/api-docs
+                - RewritePath=/rag-service/openapi.json, /openapi.json
 
 
 # =========================================================
@@ -305,3 +305,9 @@ springdoc:
 
       - name: Auth Service
         url: /auth-service/v3/api-docs
+
+      - name: soc-service
+        url: /soc-service/v3/api-docs
+
+      - name: rag-service
+        url: /rag-service/openapi.json

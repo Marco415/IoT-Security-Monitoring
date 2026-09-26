@@ -70,7 +70,9 @@ public class SecurityConfig {
 
                                 "/device-service/v3/api-docs",
                                 "/event-service/v3/api-docs",
-                                "/auth-service/v3/api-docs"
+                                "/auth-service/v3/api-docs",
+                                "/soc-service/v3/api-docs",
+                                "/rag-service/openapi.json"
                         )
                         .permitAll()
 

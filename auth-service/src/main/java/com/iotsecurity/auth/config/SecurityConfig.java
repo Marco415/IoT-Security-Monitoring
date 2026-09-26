@@ -15,7 +15,6 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 
 import org.springframework.security.core.userdetails.UserDetailsService;
-
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -71,12 +70,14 @@ public class SecurityConfig {
                 )
 
                 .authorizeHttpRequests(auth -> auth
+
                         .requestMatchers(
                                 "/api/auth/login",
                                 "/api/auth/register",
                                 "/actuator/health",
                                 "/actuator/info"
-                        ).permitAll()
+                        )
+                        .permitAll()
 
                         .requestMatchers(
                                 "/swagger-ui.html",
@@ -85,7 +86,17 @@ public class SecurityConfig {
                         )
                         .permitAll()
 
-                        .anyRequest().authenticated()
+                        /*
+                         * The internal Auth event endpoint performs its
+                         * own X-Internal-Service-Key validation.
+                         */
+                        .requestMatchers(
+                                "/internal/auth-events"
+                        )
+                        .permitAll()
+
+                        .anyRequest()
+                        .authenticated()
                 )
 
                 .addFilterBefore(

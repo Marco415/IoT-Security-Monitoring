@@ -27,13 +27,6 @@ spring:
       static-locations:
         - classpath:/static/
 
-auth:
-  datasource:
-    url: ${AUTH_DATASOURCE_URL:jdbc:postgresql://auth-db:5432/auth_db}
-    username: ${AUTH_DATASOURCE_USERNAME:auth_user}
-    password: ${AUTH_DATASOURCE_PASSWORD:auth_password}
-    driver-class-name: org.postgresql.Driver
-
 soc:
   collector:
     auth:
@@ -42,8 +35,10 @@ soc:
   services:
     gateway-url: ${SOC_GATEWAY_URL:http://gateway:8090/actuator/health}
     auth-url: ${SOC_AUTH_URL:http://auth-service:8083/actuator/health}
+    auth-events-url: ${SOC_AUTH_EVENTS_URL:http://auth-service:8083/internal/auth-events}
     device-url: ${SOC_DEVICE_URL:http://device-service:8081/actuator/health}
     event-url: ${SOC_EVENT_URL:http://event-service:8082/actuator/health}
+    internal-service-key: ${SOC_INTERNAL_SERVICE_KEY:change-this-internal-development-key}
 
 server:
   port: ${SERVER_PORT:8084}
