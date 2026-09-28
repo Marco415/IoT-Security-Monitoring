@@ -311,3 +311,9 @@ springdoc:
 
       - name: rag-service
         url: /rag-service/openapi.json
+
+
+soc:
+  audit:
+    url: ${SOC_AUDIT_URL:http://localhost:8084}
+    api-key: ${SOC_INTERNAL_API_KEY:change-this-internal-soc-key}

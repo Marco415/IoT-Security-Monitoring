@@ -663,14 +663,27 @@ public class AlertService {
         );
     }
 
-    public void analyzeEvent(
-            SOCEvent event
-    ) {
+    public void analyzeEvent(SOCEvent event) {
 
         List<DetectionEngine.DetectionResult> detections =
                 detectionEngine.analyze(event);
 
         for (DetectionEngine.DetectionResult detection : detections) {
+
+            if (alertAlreadyExists(detection)) {
+
+                log.info(
+                        "Suppressing duplicate SOC alert " +
+                                "rule={} eventId={} sourceIp={} userId={} eventCount={}",
+                        detection.rule(),
+                        detection.event().getEventId(),
+                        detection.event().getSourceIp(),
+                        detection.event().getUserId(),
+                        detection.eventCount()
+                );
+
+                continue;
+            }
 
             createAlert(
                     detection.rule(),
@@ -680,5 +693,50 @@ public class AlertService {
                     detection.message()
             );
         }
+    }
+
+    private boolean alertAlreadyExists(
+            DetectionEngine.DetectionResult detection
+    ) {
+        SOCEvent event = detection.event();
+
+        LocalDateTime windowStart =
+                event.getTimestamp().minusMinutes(5);
+
+        DetectionRule rule = detection.rule();
+
+        if (event.getSourceIp() != null &&
+                !event.getSourceIp().isBlank()) {
+
+            List<SOCAlert> alerts =
+                    alertRepository
+                            .findByRuleAndSourceIpAndTimestampAfter(
+                                    rule,
+                                    event.getSourceIp(),
+                                    windowStart
+                            );
+
+            if (!alerts.isEmpty()) {
+                return true;
+            }
+        }
+
+        if (event.getUserId() != null &&
+                !event.getUserId().isBlank()) {
+
+            List<SOCAlert> alerts =
+                    alertRepository
+                            .findByRuleAndUserIdAndTimestampAfter(
+                                    rule,
+                                    event.getUserId(),
+                                    windowStart
+                            );
+
+            if (!alerts.isEmpty()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

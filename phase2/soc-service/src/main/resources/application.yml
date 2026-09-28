@@ -71,6 +71,9 @@ soc:
       username: ${AUTH_DB_USERNAME:auth_user}
       password: ${AUTH_DB_PASSWORD:auth_password}
 
+  internal:
+    api-key: ${SOC_INTERNAL_API_KEY:change-this-internal-soc-key}
+
 server:
   port: ${SERVER_PORT:8084}
 
