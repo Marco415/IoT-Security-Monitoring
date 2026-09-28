@@ -249,13 +249,17 @@ public class Neo4jGraphService {
 
     /**
      * Creates or updates a User node.
+     *
+     * The Neo4j entity synchronization uses username as the
+     * canonical identity, so event and alert relationships
+     * must use the same identity.
      */
     public void upsertUser(
-            String userId,
+            String username,
             String role
     ) {
 
-        if (userId == null || userId.isBlank()) {
+        if (username == null || username.isBlank()) {
             return;
         }
 
@@ -266,11 +270,11 @@ public class Neo4jGraphService {
                 tx.run(
                         """
                         MERGE (u:User {
-                            userId: $userId
+                            username: $username
                         })
                         """,
                         Values.parameters(
-                                "userId", userId
+                                "username", username
                         )
                 );
 
@@ -281,17 +285,17 @@ public class Neo4jGraphService {
                             MERGE (r:Role {
                                 name: $role
                             })
-
+    
                             WITH r
-
+    
                             MATCH (u:User {
-                                userId: $userId
+                                username: $username
                             })
-
+    
                             MERGE (u)-[:HAS_ROLE]->(r)
                             """,
                             Values.parameters(
-                                    "userId", userId,
+                                    "username", username,
                                     "role", role
                             )
                     );
@@ -301,16 +305,16 @@ public class Neo4jGraphService {
             });
 
             log.info(
-                    "Neo4j user synchronized userId={} role={}",
-                    userId,
+                    "Neo4j user synchronized username={} role={}",
+                    username,
                     role
             );
 
         } catch (Exception ex) {
 
             log.error(
-                    "Failed to synchronize Neo4j user userId={} role={}",
-                    userId,
+                    "Failed to synchronize Neo4j user username={} role={}",
+                    username,
                     role,
                     ex
             );
@@ -324,8 +328,12 @@ public class Neo4jGraphService {
     // EVENT
     // ============================================================
 
+
     /**
      * Creates or updates an Event node.
+     *
+     * affectedEntity contains the source deviceId for
+     * event-service security events.
      */
     public void upsertEvent(
             String eventId,
@@ -333,9 +341,10 @@ public class Neo4jGraphService {
             String eventType,
             String severity,
             String sourceIp,
-            String message
+            String message,
+            String username,
+            String deviceId
     ) {
-
         if (eventId == null || eventId.isBlank()) {
             return;
         }
@@ -349,13 +358,14 @@ public class Neo4jGraphService {
                         MERGE (e:Event {
                             eventId: $eventId
                         })
-
                         SET
                             e.timestamp = $timestamp,
                             e.eventType = $eventType,
                             e.severity = $severity,
                             e.sourceIp = $sourceIp,
-                            e.message = $message
+                            e.message = $message,
+                            e.username = $username,
+                            e.deviceId = $deviceId
                         """,
                         Values.parameters(
                                 "eventId", eventId,
@@ -363,7 +373,9 @@ public class Neo4jGraphService {
                                 "eventType", eventType,
                                 "severity", severity,
                                 "sourceIp", sourceIp,
-                                "message", message
+                                "message", message,
+                                "username", username,
+                                "deviceId", deviceId
                         )
                 );
 
@@ -371,7 +383,8 @@ public class Neo4jGraphService {
             });
 
             log.info(
-                    "Neo4j event synchronized eventId={} eventType={} severity={}",
+                    "Neo4j event synchronized " +
+                            "eventId={} eventType={} severity={} deviceId={}",
                     eventId,
                     eventType,
                     severity
@@ -461,20 +474,16 @@ public class Neo4jGraphService {
     // ============================================================
 
     /**
-     * Links an event to a user.
+     * Links an event to the canonical User node.
      *
      * User TRIGGERED Event
      */
     public void linkEventToUser(
             String eventId,
-            String userId
+            String username
     ) {
-
-        if (eventId == null ||
-                eventId.isBlank() ||
-                userId == null ||
-                userId.isBlank()) {
-
+        if (eventId == null || eventId.isBlank()
+                || username == null || username.isBlank()) {
             return;
         }
 
@@ -484,42 +493,22 @@ public class Neo4jGraphService {
 
                 tx.run(
                         """
-                        MERGE (u:User {
-                            userId: $userId
+                        MATCH (u:User {
+                            username: $username
                         })
-
-                        MERGE (e:Event {
+                        MATCH (e:Event {
                             eventId: $eventId
                         })
-
                         MERGE (u)-[:TRIGGERED]->(e)
                         """,
                         Values.parameters(
-                                "userId", userId,
+                                "username", username,
                                 "eventId", eventId
                         )
                 );
 
                 return null;
             });
-
-            log.info(
-                    "Neo4j event linked to user eventId={} userId={}",
-                    eventId,
-                    userId
-            );
-
-        } catch (Exception ex) {
-
-            log.error(
-                    "Failed to link Neo4j event to user " +
-                            "eventId={} userId={}",
-                    eventId,
-                    userId,
-                    ex
-            );
-
-            throw ex;
         }
     }
 
@@ -537,10 +526,14 @@ public class Neo4jGraphService {
             String serviceName,
             String eventType,
             String severity,
-            String userId,
+            String username,
             String sourceIp,
-            String message
+            String message,
+            String affectedEntity
     ) {
+        if (eventId == null || eventId.isBlank()) {
+            return;
+        }
 
         upsertEvent(
                 eventId,
@@ -548,33 +541,32 @@ public class Neo4jGraphService {
                 eventType,
                 severity,
                 sourceIp,
-                message
+                message,
+                username,
+                affectedEntity
         );
 
-        if (serviceName != null &&
-                !serviceName.isBlank()) {
+        linkEventToService(
+                eventId,
+                serviceName
+        );
 
-            linkEventToService(
-                    eventId,
-                    serviceName
-            );
-        }
+        linkEventToUser(
+                eventId,
+                username
+        );
 
-        if (userId != null &&
-                !userId.isBlank()) {
-
-            linkEventToUser(
-                    eventId,
-                    userId
-            );
-        }
+        linkEventToDevice(
+                eventId,
+                affectedEntity
+        );
 
         log.info(
                 "Neo4j event synchronization complete " +
-                        "eventId={} serviceName={} userId={}",
+                        "eventId={} serviceName={} userId={} deviceId={}",
                 eventId,
                 serviceName,
-                userId
+                affectedEntity
         );
     }
 
@@ -738,60 +730,29 @@ public class Neo4jGraphService {
      */
     public void linkAlertToUser(
             String alertId,
-            String userId
+            String username
     ) {
-
-        if (alertId == null ||
-                alertId.isBlank() ||
-                userId == null ||
-                userId.isBlank()) {
-
+        if (alertId == null || alertId.isBlank()
+                || username == null || username.isBlank()) {
             return;
         }
 
         try (Session session = driver.session()) {
-
             session.executeWrite(tx -> {
 
-                tx.run(
-                        """
-                        MERGE (a:Alert {
-                            alertId: $alertId
-                        })
-
-                        MERGE (u:User {
-                            userId: $userId
-                        })
-
-                        MERGE (a)-[:AFFECTS_USER]->(u)
-                        """,
+                tx.run("""
+                MATCH (u:User {username: $username})
+                MATCH (a:Alert {alertId: $alertId})
+                MERGE (u)-[:TRIGGERED]->(a)
+                """,
                         Values.parameters(
-                                "alertId", alertId,
-                                "userId", userId
+                                "username", username,
+                                "alertId", alertId
                         )
                 );
 
                 return null;
             });
-
-            log.info(
-                    "Neo4j alert linked to user " +
-                            "alertId={} userId={}",
-                    alertId,
-                    userId
-            );
-
-        } catch (Exception ex) {
-
-            log.error(
-                    "Failed to link Neo4j alert to user " +
-                            "alertId={} userId={}",
-                    alertId,
-                    userId,
-                    ex
-            );
-
-            throw ex;
         }
     }
 
@@ -1066,6 +1027,41 @@ public class Neo4jGraphService {
     }
 
 
+    public void linkEventToDevice(
+            String eventId,
+            String deviceId
+    ) {
+        if (eventId == null || eventId.isBlank()
+                || deviceId == null || deviceId.isBlank()) {
+            return;
+        }
+
+        try (Session session = driver.session()) {
+
+            session.executeWrite(tx -> {
+
+                tx.run(
+                        """
+                        MATCH (d:Device {
+                            deviceId: $deviceId
+                        })
+                        MATCH (e:Event {
+                            eventId: $eventId
+                        })
+                        MERGE (d)-[:HAS_SECURITY_EVENT]->(e)
+                        """,
+                        Values.parameters(
+                                "deviceId", deviceId,
+                                "eventId", eventId
+                        )
+                );
+
+                return null;
+            });
+        }
+    }
+
+
     // ============================================================
     // SERVICE DEPENDENCIES
     // ============================================================
@@ -1335,7 +1331,7 @@ public class Neo4jGraphService {
                 tx.run(
                         """
                         MERGE (u:User {
-                            userId: $username
+                            username: $username
                         })
                         """,
                         Values.parameters(
@@ -1529,7 +1525,7 @@ public class Neo4jGraphService {
                     tx.run(
                             """
                             MATCH (u:User {
-                                userId: $username
+                                username: $username
                             })
 
                             MATCH (e:Event {

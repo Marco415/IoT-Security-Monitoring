@@ -52,6 +52,25 @@ soc:
     event-url: ${SOC_EVENT_URL:http://event-service:8082/actuator/health}
     internal-service-key: ${SOC_INTERNAL_SERVICE_KEY:change-this-internal-development-key}
 
+  graph:
+    entity-sync:
+      enabled: true
+      interval-ms: 30000
+      initial-delay-ms: 10000
+      relationship-interval-ms: 30000
+      relationship-initial-delay-ms: 15000
+
+  source-databases:
+    device:
+      url: ${DEVICE_DB_URL:jdbc:postgresql://device-db:5432/device_db}
+      username: ${DEVICE_DB_USERNAME:device_user}
+      password: ${DEVICE_DB_PASSWORD:device_password}
+
+    auth:
+      url: ${AUTH_DB_URL:jdbc:postgresql://auth-db:5432/auth_db}
+      username: ${AUTH_DB_USERNAME:auth_user}
+      password: ${AUTH_DB_PASSWORD:auth_password}
+
 server:
   port: ${SERVER_PORT:8084}
 

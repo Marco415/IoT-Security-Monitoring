@@ -145,7 +145,9 @@ public class AlertService {
 
                     savedEvent.getSourceIp(),
 
-                    savedEvent.getMessage()
+                    savedEvent.getMessage(),
+
+                    event.getAffectedEntity()
             );
 
         } catch (Exception ex) {

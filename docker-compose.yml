@@ -479,6 +479,17 @@ services:
 
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
 
+      DEVICE_DB_URL: jdbc:postgresql://device-db:5432/device_db
+      DEVICE_DB_USERNAME: ${DEVICE_DB_USER}
+      DEVICE_DB_PASSWORD: ${DEVICE_DB_PASSWORD}
+
+      AUTH_DB_URL: jdbc:postgresql://auth-db:5432/auth_db
+      AUTH_DB_USERNAME: ${AUTH_DB_USER}
+      AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD}
+
+      SOC_GRAPH_ENTITY_SYNC_ENABLED: "true"
+      SOC_GRAPH_ENTITY_SYNC_INTERVAL_MS: "30000"
+
     depends_on:
       soc-db:
         condition: service_healthy
@@ -493,6 +504,12 @@ services:
         condition: service_healthy
 
       logstash:
+        condition: service_healthy
+      
+      device-db:
+        condition: service_healthy
+
+      auth-db:
         condition: service_healthy
 
     networks:
