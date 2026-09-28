@@ -783,57 +783,154 @@
     </section>
 
 
-    <!-- =====================================================
-         GRAPH RAG
-         ===================================================== -->
+<!-- =====================================================
+     GRAPH RAG
+     ===================================================== -->
 
+<section
+    id="rag-section"
+    class="card"
+>
 
-    <section id="rag-section" class="panel">
+    <div class="section-heading">
 
-        <h2>Security Knowledge Graph RAG</h2>
+        <div>
 
-        <p>
-            Ask a natural-language question about the security
-            knowledge graph.
-        </p>
+            <h2>
+                Security Knowledge Graph RAG
+            </h2>
 
-        <textarea
-            id="rag-question"
-            rows="4"
-            placeholder="Why was alert-001 created and what should be done?"
-        ></textarea>
-
-        <button id="rag-ask-button">
-            Ask
-        </button>
-
-        <div id="rag-answer-container">
-
-            <h3>Answer</h3>
-
-            <div id="rag-answer">
-                No question asked yet.
-            </div>
+            <p class="section-description">
+                Ask a natural-language question about the
+                security knowledge graph and retrieve
+                evidence-backed security information.
+            </p>
 
         </div>
 
-        <div id="rag-evidence-container">
+    </div>
 
-            <h3>Evidence</h3>
 
-            <div id="rag-method"></div>
+    <!-- =================================================
+         QUESTION
+         ================================================= -->
 
-            <h4>Retrieved Nodes</h4>
+    <div class="rag-question-panel">
 
-            <ul id="rag-nodes"></ul>
+        <div class="form-group">
 
-            <h4>Retrieved Relationships</h4>
+            <label for="rag-question">
+                Security Question
+            </label>
 
-            <ul id="rag-relationships"></ul>
+            <textarea
+                id="rag-question"
+                rows="4"
+                placeholder="Why was alert-001 created and what should be done?"
+            ></textarea>
 
         </div>
 
-    </section>
+
+        <div class="button-row">
+
+            <button
+                type="button"
+                id="rag-ask-button"
+                class="primary"
+            >
+                Ask
+            </button>
+
+
+            <button
+                type="button"
+                id="rag-reset-button"
+                class="secondary"
+            >
+                Reset
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- =================================================
+         ANSWER
+         ================================================= -->
+
+    <div
+        id="rag-answer-container"
+        class="rag-result-panel"
+    >
+
+        <h3>
+            Answer
+        </h3>
+
+        <div
+            id="rag-answer"
+            class="rag-answer"
+        >
+            No question asked yet.
+        </div>
+
+    </div>
+
+
+    <!-- =================================================
+         EVIDENCE
+         ================================================= -->
+
+    <div
+        id="rag-evidence-container"
+        class="rag-result-panel"
+    >
+
+        <h3>
+            Evidence
+        </h3>
+
+
+        <div
+            id="rag-method"
+            class="rag-method"
+        >
+            No retrieval performed yet.
+        </div>
+
+
+        <div class="rag-evidence-section">
+
+            <h4>
+                Retrieved Nodes
+            </h4>
+
+            <ul
+                id="rag-nodes"
+                class="rag-evidence-list"
+            ></ul>
+
+        </div>
+
+
+        <div class="rag-evidence-section">
+
+            <h4>
+                Retrieved Relationships
+            </h4>
+
+            <ul
+                id="rag-relationships"
+                class="rag-evidence-list"
+            ></ul>
+
+        </div>
+
+    </div>
+
+</section>
 
 
     <!-- =====================================================

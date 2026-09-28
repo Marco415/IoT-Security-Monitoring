@@ -18,7 +18,7 @@ NEO4J_USERNAME = os.getenv(
 
 NEO4J_PASSWORD = os.getenv(
     "NEO4J_PASSWORD",
-    "password"
+    "neo4jgpraph"
 )
 
 NEO4J_DATABASE = os.getenv(
@@ -39,6 +39,6 @@ OLLAMA_MODEL = os.getenv(
 OLLAMA_TIMEOUT = int(
     os.getenv(
         "OLLAMA_TIMEOUT",
-        "120"
+        "300"
     )
 )

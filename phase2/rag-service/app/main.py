@@ -3,6 +3,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.router import router
 from app.neo4j_client import Neo4jClient
@@ -116,13 +117,27 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:8084",
+        "http://127.0.0.1:8084",
+        "http://localhost:8090",
+        "http://127.0.0.1:8090",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 # =========================================================
 # ROUTER
 # =========================================================
 
 app.include_router(
-    router
+    router,
+    prefix="/api/rag"
 )
 
 

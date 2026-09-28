@@ -4006,30 +4006,79 @@ document.addEventListener(
 
 );
 
-const RAG_API_BASE_URL = "http://localhost:8092";
+/* ============================================================
+   RAG / GRAPHRAG
+   ============================================================ */
 
+const RAG_API_BASE_URL =
+    `${API_BASE_URL}/api/rag`;
+
+
+/* ============================================================
+   ASK RAG QUESTION
+   ============================================================ */
 
 async function askRAGQuestion() {
 
     const questionElement =
-        document.getElementById("rag-question");
+        document.getElementById(
+            "rag-question"
+        );
+
 
     const answerElement =
-        document.getElementById("rag-answer");
+        document.getElementById(
+            "rag-answer"
+        );
+
 
     const methodElement =
-        document.getElementById("rag-method");
+        document.getElementById(
+            "rag-method"
+        );
+
 
     const nodesElement =
-        document.getElementById("rag-nodes");
+        document.getElementById(
+            "rag-nodes"
+        );
+
 
     const relationshipsElement =
-        document.getElementById("rag-relationships");
+        document.getElementById(
+            "rag-relationships"
+        );
+
+
+    /*
+     * RAG requires authentication.
+     *
+     * The login function stores the JWT in localStorage.
+     */
+
+    if (
+        !getJwt()
+    ) {
+
+        answerElement.textContent =
+            "Please login before using the RAG assistant.";
+
+        showNotification(
+            "Please login before using the RAG assistant.",
+            "error"
+        );
+
+        return;
+    }
+
 
     const question =
         questionElement.value.trim();
 
-    if (!question) {
+
+    if (
+        !question
+    ) {
 
         answerElement.textContent =
             "Please enter a question.";
@@ -4037,85 +4086,156 @@ async function askRAGQuestion() {
         return;
     }
 
+
     answerElement.textContent =
         "Retrieving graph evidence and generating answer...";
 
-    methodElement.textContent = "";
 
-    nodesElement.innerHTML = "";
+    methodElement.textContent =
+        "";
 
-    relationshipsElement.innerHTML = "";
+
+    nodesElement.innerHTML =
+        "";
+
+
+    relationshipsElement.innerHTML =
+        "";
+
 
     try {
 
-        const response = await fetch(
-            `${RAG_API_BASE_URL}/api/rag/ask`,
-            {
-                method: "POST",
-
-                headers: {
-                    "Content-Type": "application/json"
-                },
-
-                body: JSON.stringify({
-                    question: question
-                })
-            }
-        );
-
-        if (!response.ok) {
-
-            const errorText =
-                await response.text();
-
-            throw new Error(
-                errorText
-            );
-        }
+        /*
+         * Use apiRequest() rather than fetch().
+         *
+         * apiRequest() automatically adds:
+         *
+         * Authorization: Bearer <JWT>
+         */
 
         const data =
-            await response.json();
+            await apiRequest(
+                `${RAG_API_BASE_URL}/ask`,
+                {
+                    method:
+                        "POST",
+
+                    body:
+                        JSON.stringify({
+                            question:
+                                question
+                        })
+                }
+            );
+
+
+        /*
+         * Display generated answer.
+         */
 
         answerElement.textContent =
-            data.answer;
+            data.answer ||
+            "No answer was returned by the RAG service.";
+
+
+        /*
+         * Display retrieval method.
+         */
 
         methodElement.textContent =
-            `Retrieval method: ${data.retrieval_method}`;
+            data.retrieval_method
+                ? `Retrieval method: ${data.retrieval_method}`
+                : "";
 
-        data.evidence_nodes.forEach(
+
+        /*
+         * Display graph evidence nodes.
+         */
+
+        const evidenceNodes =
+            Array.isArray(
+                data.evidence_nodes
+            )
+                ? data.evidence_nodes
+                : [];
+
+
+        evidenceNodes.forEach(
             node => {
 
                 const li =
-                    document.createElement("li");
+                    document.createElement(
+                        "li"
+                    );
+
 
                 const properties =
                     JSON.stringify(
-                        node.properties,
+                        node.properties || {},
                         null,
                         2
                     );
 
-                li.textContent =
-                    `${node.label}: ${properties}`;
 
-                nodesElement.appendChild(li);
+                li.textContent =
+                    `${node.label || "Node"}: ${properties}`;
+
+
+                nodesElement.appendChild(
+                    li
+                );
             }
         );
 
-        data.evidence_relationships.forEach(
+
+        /*
+         * Display graph evidence relationships.
+         */
+
+        const evidenceRelationships =
+            Array.isArray(
+                data.evidence_relationships
+            )
+                ? data.evidence_relationships
+                : [];
+
+
+        evidenceRelationships.forEach(
             relationship => {
 
                 const li =
-                    document.createElement("li");
+                    document.createElement(
+                        "li"
+                    );
+
 
                 li.textContent =
-                    `${relationship.source} `
-                    + `${relationship.relationship} `
-                    + `${relationship.target}`;
+                    `${relationship.source || ""} `
+                    + `${relationship.relationship || ""} `
+                    + `${relationship.target || ""}`;
 
-                relationshipsElement.appendChild(li);
+
+                relationshipsElement.appendChild(
+                    li
+                );
             }
         );
+
+
+        /*
+         * Display evidence count if supplied
+         * by the RAG service.
+         */
+
+        if (
+            data.evidence_count !== undefined &&
+            data.evidence_count !== null
+        ) {
+
+            methodElement.textContent +=
+                ` | Evidence: ${data.evidence_count}`;
+        }
+
 
     } catch (error) {
 
@@ -4124,26 +4244,131 @@ async function askRAGQuestion() {
             error
         );
 
+
         answerElement.textContent =
             `RAG request failed: ${error.message}`;
     }
 }
 
 
+/* ============================================================
+   RESET RAG
+   ============================================================ */
+
+function resetRAG() {
+
+    const questionElement =
+        document.getElementById(
+            "rag-question"
+        );
+
+
+    const answerElement =
+        document.getElementById(
+            "rag-answer"
+        );
+
+
+    const methodElement =
+        document.getElementById(
+            "rag-method"
+        );
+
+
+    const nodesElement =
+        document.getElementById(
+            "rag-nodes"
+        );
+
+
+    const relationshipsElement =
+        document.getElementById(
+            "rag-relationships"
+        );
+
+
+    /*
+     * Clear question.
+     */
+
+    questionElement.value =
+        "";
+
+
+    /*
+     * Reset answer.
+     */
+
+    answerElement.textContent =
+        "No question asked yet.";
+
+
+    /*
+     * Reset retrieval information.
+     */
+
+    methodElement.textContent =
+        "No retrieval performed yet.";
+
+
+    /*
+     * Remove all retrieved evidence.
+     */
+
+    nodesElement.innerHTML =
+        "";
+
+
+    relationshipsElement.innerHTML =
+        "";
+
+
+    showNotification(
+        "RAG question and results have been cleared.",
+        "info"
+    );
+
+}
+
+
+/* ============================================================
+   RAG BUTTON
+   ============================================================ */
+
 document.addEventListener(
     "DOMContentLoaded",
     () => {
 
-        const button =
+        const askButton =
             document.getElementById(
                 "rag-ask-button"
             );
 
-        if (button) {
 
-            button.addEventListener(
+        if (
+            askButton
+        ) {
+
+            askButton.addEventListener(
                 "click",
                 askRAGQuestion
+            );
+        }
+
+
+        const resetButton =
+            document.getElementById(
+                "rag-reset-button"
+            );
+
+
+        if (
+            resetButton
+        ) {
+
+            resetButton.addEventListener(
+                "click",
+                resetRAG
             );
         }
 

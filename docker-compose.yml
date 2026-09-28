@@ -553,6 +553,8 @@ services:
     
       NEO4J_URI: bolt://host.docker.internal:7687 
       OLLAMA_URL: http://host.docker.internal:11434 
+      OLLAMA_MODEL: qwen3
+      OLLAMA_TIMEOUT: 300
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/ 
       
     depends_on: 

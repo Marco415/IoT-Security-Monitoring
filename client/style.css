@@ -811,3 +811,196 @@ table tbody tr:hover {
     }
 
 }
+
+/* ============================================================
+   GRAPH RAG
+   ============================================================ */
+
+#rag-section {
+    border-top: 4px solid #2563eb;
+}
+
+
+/* ============================================================
+   RAG QUESTION
+   ============================================================ */
+
+.rag-question-panel {
+    background: #f8fafc;
+
+    border: 1px solid #dbeafe;
+
+    border-radius: 7px;
+
+    padding: 20px;
+
+    margin-top: 20px;
+
+    margin-bottom: 20px;
+}
+
+
+.rag-question-panel .form-group {
+    margin-bottom: 0;
+}
+
+
+#rag-question {
+    min-height: 110px;
+
+    resize: vertical;
+
+    line-height: 1.5;
+}
+
+
+/* ============================================================
+   RAG RESULTS
+   ============================================================ */
+
+.rag-result-panel {
+    background: #fafafa;
+
+    border: 1px solid #e5e7eb;
+
+    border-radius: 7px;
+
+    padding: 20px;
+
+    margin-top: 20px;
+}
+
+
+.rag-result-panel h3 {
+    margin-top: 0;
+
+    margin-bottom: 12px;
+
+    padding-bottom: 10px;
+
+    border-bottom: 1px solid #ddd;
+}
+
+
+.rag-answer {
+    background: white;
+
+    border: 1px solid #e5e7eb;
+
+    border-radius: 6px;
+
+    padding: 16px;
+
+    min-height: 70px;
+
+    white-space: pre-wrap;
+
+    line-height: 1.6;
+}
+
+
+/* ============================================================
+   RAG METHOD
+   ============================================================ */
+
+.rag-method {
+    background: #dbeafe;
+
+    color: #1e40af;
+
+    border: 1px solid #93c5fd;
+
+    border-radius: 6px;
+
+    padding: 12px 14px;
+
+    margin-bottom: 20px;
+
+    font-size: 14px;
+
+    font-weight: bold;
+}
+
+
+/* ============================================================
+   RAG EVIDENCE
+   ============================================================ */
+
+.rag-evidence-section {
+    margin-top: 20px;
+}
+
+
+.rag-evidence-section h4 {
+    margin-bottom: 10px;
+}
+
+
+.rag-evidence-list {
+    margin: 0;
+
+    padding-left: 25px;
+}
+
+
+.rag-evidence-list li {
+    background: white;
+
+    border: 1px solid #e5e7eb;
+
+    border-radius: 5px;
+
+    padding: 10px 12px;
+
+    margin-bottom: 8px;
+
+    word-break: break-word;
+
+    overflow-wrap: anywhere;
+
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    font-size: 14px;
+
+    line-height: 1.5;
+}
+
+
+.rag-evidence-list:empty::after {
+    content: "No evidence retrieved.";
+
+    display: block;
+
+    color: #777;
+
+    font-style: italic;
+
+    padding: 5px 0;
+}
+
+
+/* ============================================================
+   RAG ANSWER / EVIDENCE RESPONSIVE
+   ============================================================ */
+
+@media (max-width: 700px) {
+
+    .rag-question-panel,
+    .rag-result-panel {
+        padding: 15px;
+    }
+
+
+    #rag-question {
+        min-height: 130px;
+    }
+
+
+    .rag-evidence-list {
+        padding-left: 20px;
+    }
+
+}
