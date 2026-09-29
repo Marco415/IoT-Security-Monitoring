@@ -182,10 +182,6 @@ public class EventSecurityEventCollector {
                         normalizedEvent
                 );
 
-        alertService.analyzeEvent(
-                savedEvent
-        );
-
         log.info(
                 "Event-service security event ingested successfully " +
                         "sourceEventId={} socEventId={} " +

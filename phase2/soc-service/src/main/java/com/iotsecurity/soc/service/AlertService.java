@@ -6,7 +6,6 @@ import com.iotsecurity.soc.model.SOCEvent;
 import com.iotsecurity.soc.model.Severity;
 import com.iotsecurity.soc.repository.SOCAlertRepository;
 import com.iotsecurity.soc.repository.SOCEventRepository;
-import com.iotsecurity.soc.service.DetectionEngine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -43,19 +42,37 @@ public class AlertService {
 
 
     // ============================================================
-    // SAVE EVENT
+    // PROCESS EVENT
     // ============================================================
 
     /**
-     * Saves a normalized SOC event to PostgreSQL and
-     * synchronizes the event with Neo4j.
+     * Processes a normalized SOC event.
+     *
+     * Normal HTTP requests are NOT automatically persisted.
+     *
+     * Every event is first passed through DetectionEngine.
+     *
+     * Events are persisted when:
+     *
+     * 1. The event is non-normal:
+     *      401
+     *      403
+     *      500+
+     *
+     * OR
+     *
+     * 2. The event is a normal HTTP request that triggered
+     *    a detection rule.
+     *
+     * Normal requests which trigger no detection are discarded
+     * after detection.
      */
     public SOCEvent saveEvent(
             SOCEvent event
     ) {
 
         log.info(
-                "Saving normalized SOC event " +
+                "Processing SOC event " +
                         "eventId={} serviceName={} " +
                         "eventType={} severity={} userId={} " +
                         "sourceIp={} endpoint={} statusCode={} " +
@@ -73,7 +90,60 @@ public class AlertService {
 
 
         // --------------------------------------------------------
-        // PostgreSQL
+        // DETECTION
+        // --------------------------------------------------------
+
+        List<DetectionEngine.DetectionResult> detections =
+                detectionEngine.analyze(event);
+
+
+        boolean normalHttpRequest =
+                "HTTP_REQUEST".equalsIgnoreCase(
+                        event.getEventType()
+                );
+
+
+        /*
+         * Non-normal events are always persisted.
+         *
+         * This includes:
+         *
+         * 401
+         * 403
+         * 500+
+         *
+         * and security-specific events such as FAILED_LOGIN.
+         */
+        boolean persistEvent =
+                !normalHttpRequest ||
+                        !detections.isEmpty();
+
+
+        if (!persistEvent) {
+
+            log.debug(
+                    "Discarding normal HTTP request with no detection " +
+                            "eventId={} serviceName={} endpoint={} " +
+                            "sourceIp={} statusCode={}",
+                    event.getEventId(),
+                    event.getServiceName(),
+                    event.getEndpoint(),
+                    event.getSourceIp(),
+                    event.getStatusCode()
+            );
+
+            /*
+             * The event is deliberately NOT saved.
+             *
+             * DetectionEngine has already processed it, including
+             * the in-memory request-rate window.
+             */
+            return event;
+        }
+
+
+        // --------------------------------------------------------
+        // POSTGRESQL EVENT
         // --------------------------------------------------------
 
         SOCEvent savedEvent =
@@ -81,71 +151,100 @@ public class AlertService {
 
 
         log.info(
-                "SOC event saved successfully " +
+                "SOC event persisted " +
                         "eventId={} serviceName={} " +
-                        "eventType={} severity={} correlationId={}",
+                        "eventType={} severity={} statusCode={} " +
+                        "detectionCount={} correlationId={}",
                 savedEvent.getEventId(),
                 savedEvent.getServiceName(),
                 savedEvent.getEventType(),
                 savedEvent.getSeverity(),
+                savedEvent.getStatusCode(),
+                detections.size(),
                 savedEvent.getCorrelationId()
         );
 
-        try {
 
-            analyzeEvent(savedEvent);
+        // --------------------------------------------------------
+        // NEO4J EVENT
+        // --------------------------------------------------------
 
-        } catch (Exception ex) {
+        synchronizeEventWithNeo4j(
+                savedEvent
+        );
 
-            /*
-             * Event persistence must not fail because
-             * detection failed.
-             */
-            log.error(
-                    "SOC event detection failed " +
-                            "eventId={} correlationId={}",
-                    savedEvent.getEventId(),
-                    savedEvent.getCorrelationId(),
-                    ex
+
+        // --------------------------------------------------------
+        // CREATE DETECTED ALERTS
+        // --------------------------------------------------------
+
+        for (
+                DetectionEngine.DetectionResult detection :
+                detections
+        ) {
+
+            if (alertAlreadyExists(detection)) {
+
+                log.info(
+                        "Suppressing duplicate SOC alert " +
+                                "rule={} eventId={} sourceIp={} " +
+                                "userId={} eventCount={}",
+                        detection.rule(),
+                        detection.event().getEventId(),
+                        detection.event().getSourceIp(),
+                        detection.event().getUserId(),
+                        detection.eventCount()
+                );
+
+                continue;
+            }
+
+
+            createAlert(
+                    detection.rule(),
+                    detection.severity(),
+                    savedEvent,
+                    detection.eventCount(),
+                    detection.message()
             );
         }
 
 
-        // --------------------------------------------------------
-        // Neo4j
-        // --------------------------------------------------------
+        return savedEvent;
+    }
+
+
+    // ============================================================
+    // NEO4J EVENT SYNCHRONIZATION
+    // ============================================================
+
+    private void synchronizeEventWithNeo4j(
+            SOCEvent event
+    ) {
 
         try {
 
             neo4jGraphService.synchronizeEvent(
 
-                    savedEvent.getEventId() != null
-                            ? savedEvent
-                            .getEventId()
-                            .toString()
+                    event.getEventId() != null
+                            ? event.getEventId().toString()
                             : null,
 
-                    savedEvent.getTimestamp() != null
-                            ? savedEvent
-                            .getTimestamp()
-                            .toString()
+                    event.getTimestamp() != null
+                            ? event.getTimestamp().toString()
                             : null,
 
-                    savedEvent.getServiceName(),
+                    event.getServiceName(),
 
-                    savedEvent.getEventType(),
+                    event.getEventType(),
 
-                    savedEvent.getSeverity() != null
-                            ? savedEvent
-                            .getSeverity()
-                            .toString()
-                            : null,
+                    event.getSeverity(),
 
-                    savedEvent.getUserId(),
+                    event.getUserId(),
 
-                    savedEvent.getSourceIp(),
+                    event.getSourceIp(),
 
-                    savedEvent.getMessage(),
+                    event.getMessage(),
 
                     event.getAffectedEntity()
             );
@@ -161,13 +260,11 @@ public class AlertService {
             log.error(
                     "Failed to synchronize SOC event with Neo4j " +
                             "eventId={} correlationId={}",
-                    savedEvent.getEventId(),
-                    savedEvent.getCorrelationId(),
+                    event.getEventId(),
+                    event.getCorrelationId(),
                     ex
             );
         }
-
-        return savedEvent;
     }
 
 
@@ -427,12 +524,16 @@ public class AlertService {
         return savedAlert;
     }
 
+
+    // ============================================================
+    // CREATE ALERT FROM MULTIPLE EVENTS
+    // ============================================================
+
     /**
      * Creates an alert from multiple related SOC events.
      *
-     * This method is intended for detection rules such as
-     * MULTIPLE_FAILED_LOGINS where several events contribute
-     * to a single alert.
+     * Used by detection rules such as
+     * MULTIPLE_FAILED_LOGINS.
      */
     public SOCAlert createAlertFromEvents(
             DetectionRule rule,
@@ -470,9 +571,9 @@ public class AlertService {
         );
 
 
-        // ------------------------------------------------------------
+        // --------------------------------------------------------
         // PostgreSQL ALERT
-        // ------------------------------------------------------------
+        // --------------------------------------------------------
 
         SOCAlert alert =
                 new SOCAlert();
@@ -514,9 +615,9 @@ public class AlertService {
                 alertRepository.save(alert);
 
 
-        // ------------------------------------------------------------
+        // --------------------------------------------------------
         // EVENT IDs
-        // ------------------------------------------------------------
+        // --------------------------------------------------------
 
         List<String> eventIds =
                 events.stream()
@@ -526,9 +627,9 @@ public class AlertService {
                         .toList();
 
 
-        // ------------------------------------------------------------
+        // --------------------------------------------------------
         // NEO4J
-        // ------------------------------------------------------------
+        // --------------------------------------------------------
 
         try {
 
@@ -553,28 +654,8 @@ public class AlertService {
                             : "auth-service";
 
 
-            /*
-             * For MULTIPLE_FAILED_LOGINS this creates:
-             *
-             * User
-             *   |
-             * TRIGGERED
-             *   |
-             * Events
-             *   |
-             * CREATED_ALERT
-             *   |
-             * Alert
-             *   |
-             * INDICATES
-             *   |
-             * T1110 Brute Force
-             *   |
-             * TARGETS
-             *   |
-             * auth-service
-             */
-            if (rule == DetectionRule.MULTIPLE_FAILED_LOGINS) {
+            if (rule ==
+                    DetectionRule.MULTIPLE_FAILED_LOGINS) {
 
                 neo4jGraphService.createFailedLoginGraph(
                         primaryEvent.getUserId(),
@@ -586,10 +667,6 @@ public class AlertService {
 
             } else {
 
-                /*
-                 * For other detection rules retain the
-                 * existing generic alert synchronization.
-                 */
                 neo4jGraphService.synchronizeAlert(
 
                         alertId,
@@ -638,72 +715,62 @@ public class AlertService {
         return savedAlert;
     }
 
+
+    // ============================================================
+    // SOURCE EVENT TRACKING
+    // ============================================================
+
     public long getLastSourceEventId(
             String sourceSystem
     ) {
+
         return eventRepository
                 .findTopBySourceSystemOrderBySourceEventIdDesc(
                         sourceSystem
                 )
                 .map(event -> {
+
                     if (event.getSourceEventId() == null) {
                         return 0L;
                     }
+
                     return event.getSourceEventId();
                 })
                 .orElse(0L);
     }
 
+
     public boolean existsBySource(
-            String sourceSystem, Long sourceEventId
+            String sourceSystem,
+            Long sourceEventId
     ) {
-        return eventRepository.existsBySourceSystemAndSourceEventId(
-                sourceSystem,
-                sourceEventId
-        );
-    }
 
-    public void analyzeEvent(SOCEvent event) {
-
-        List<DetectionEngine.DetectionResult> detections =
-                detectionEngine.analyze(event);
-
-        for (DetectionEngine.DetectionResult detection : detections) {
-
-            if (alertAlreadyExists(detection)) {
-
-                log.info(
-                        "Suppressing duplicate SOC alert " +
-                                "rule={} eventId={} sourceIp={} userId={} eventCount={}",
-                        detection.rule(),
-                        detection.event().getEventId(),
-                        detection.event().getSourceIp(),
-                        detection.event().getUserId(),
-                        detection.eventCount()
+        return eventRepository
+                .existsBySourceSystemAndSourceEventId(
+                        sourceSystem,
+                        sourceEventId
                 );
-
-                continue;
-            }
-
-            createAlert(
-                    detection.rule(),
-                    detection.severity(),
-                    detection.event(),
-                    detection.eventCount(),
-                    detection.message()
-            );
-        }
     }
+
+
+    // ============================================================
+    // ALERT DUPLICATE CHECK
+    // ============================================================
 
     private boolean alertAlreadyExists(
             DetectionEngine.DetectionResult detection
     ) {
-        SOCEvent event = detection.event();
+
+        SOCEvent event =
+                detection.event();
 
         LocalDateTime windowStart =
-                event.getTimestamp().minusMinutes(5);
+                event.getTimestamp()
+                        .minusMinutes(5);
 
-        DetectionRule rule = detection.rule();
+        DetectionRule rule =
+                detection.rule();
+
 
         if (event.getSourceIp() != null &&
                 !event.getSourceIp().isBlank()) {
@@ -721,6 +788,7 @@ public class AlertService {
             }
         }
 
+
         if (event.getUserId() != null &&
                 !event.getUserId().isBlank()) {
 
@@ -736,6 +804,7 @@ public class AlertService {
                 return true;
             }
         }
+
 
         return false;
     }

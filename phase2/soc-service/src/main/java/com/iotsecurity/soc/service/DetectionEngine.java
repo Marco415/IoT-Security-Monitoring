@@ -1,7 +1,6 @@
 package com.iotsecurity.soc.service;
 
 import com.iotsecurity.soc.model.DetectionRule;
-import com.iotsecurity.soc.model.SOCAlert;
 import com.iotsecurity.soc.model.SOCEvent;
 import com.iotsecurity.soc.model.Severity;
 import com.iotsecurity.soc.repository.SOCEventRepository;
@@ -9,9 +8,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class DetectionEngine {
@@ -29,17 +33,68 @@ public class DetectionEngine {
 
     private final SOCEventRepository eventRepository;
 
+    /*
+     * Stores timestamps of ALL API requests in memory.
+     *
+     * This is deliberately NOT the SOC database.
+     *
+     * It allows ABNORMAL_REQUEST_RATE to see normal requests
+     * without creating SOCEvent database records for every request.
+     *
+     * Key:
+     *     source IP
+     *
+     * Value:
+     *     timestamps of requests received from that IP
+     */
+    private final Map<String, Deque<Instant>> requestRateWindows =
+            new ConcurrentHashMap<>();
+
+    /*
+     * Tracks whether an abnormal-rate alert has already been
+     * generated for an IP during the current burst.
+     *
+     * This prevents:
+     *
+     * 101 requests -> alert
+     * 102 requests -> alert
+     * 103 requests -> alert
+     *
+     * Instead:
+     *
+     * 101 requests -> alert
+     * 102+          -> no duplicate alert
+     *
+     * Once the request rate drops back to <= 100, the IP is
+     * allowed to trigger another alert later.
+     */
+    private final Map<String, Boolean> requestRateAlertActive =
+            new ConcurrentHashMap<>();
+
     public DetectionEngine(
             SOCEventRepository eventRepository
     ) {
         this.eventRepository = eventRepository;
     }
 
+
+    // ============================================================
+    // MAIN ANALYSIS
+    // ============================================================
+
     /**
      * Runs all SOC detection rules against the supplied event.
      *
-     * The engine does not create or persist alerts.
-     * It only determines which alerts should be generated.
+     * IMPORTANT:
+     *
+     * The current event does NOT need to be saved before this
+     * method is called.
+     *
+     * This allows normal HTTP requests to be analyzed without
+     * storing them permanently.
+     *
+     * The returned DetectionResult list tells the caller whether
+     * the event triggered an alert.
      */
     public List<DetectionResult> analyze(
             SOCEvent event
@@ -142,7 +197,7 @@ public class DetectionEngine {
                                     window
                             );
 
-            long failedLogins =
+            long previousFailedLogins =
                     userEvents.stream()
                             .filter(e ->
                                     "FAILED_LOGIN"
@@ -150,12 +205,22 @@ public class DetectionEngine {
                                                     e.getEventType()))
                             .count();
 
+            /*
+             * The current event has not necessarily been saved yet.
+             *
+             * Therefore add 1 for the current failed login.
+             */
+            long failedLogins =
+                    previousFailedLogins + 1;
+
             log.info(
                     "Failed login detection user check eventId={} " +
-                            "userId={} windowStart={} failedLoginCount={} threshold={}",
+                            "userId={} windowStart={} previousFailedLoginCount={} " +
+                            "currentFailedLoginCount={} threshold={}",
                     event.getEventId(),
                     event.getUserId(),
                     window,
+                    previousFailedLogins,
                     failedLogins,
                     FAILED_LOGIN_THRESHOLD
             );
@@ -192,7 +257,7 @@ public class DetectionEngine {
                                     window
                             );
 
-            long failedLogins =
+            long previousFailedLogins =
                     ipEvents.stream()
                             .filter(e ->
                                     "FAILED_LOGIN"
@@ -200,12 +265,21 @@ public class DetectionEngine {
                                                     e.getEventType()))
                             .count();
 
+            /*
+             * Include the current failed login because it has not
+             * necessarily been persisted yet.
+             */
+            long failedLogins =
+                    previousFailedLogins + 1;
+
             log.info(
                     "Failed login detection IP check eventId={} " +
-                            "sourceIp={} windowStart={} failedLoginCount={} threshold={}",
+                            "sourceIp={} windowStart={} previousFailedLoginCount={} " +
+                            "currentFailedLoginCount={} threshold={}",
                     event.getEventId(),
                     event.getSourceIp(),
                     window,
+                    previousFailedLogins,
                     failedLogins,
                     FAILED_LOGIN_THRESHOLD
             );
@@ -293,18 +367,27 @@ public class DetectionEngine {
             return;
         }
 
-        long unauthorizedRequests =
+        long previousUnauthorizedRequests =
                 recentEvents.stream()
                         .filter(this::isUnauthorizedRequest)
                         .count();
 
+        /*
+         * Include the current 401/403 event because the current
+         * event may not have been persisted yet.
+         */
+        long unauthorizedRequests =
+                previousUnauthorizedRequests + 1;
+
         log.info(
                 "Unauthorized access detection eventId={} endpoint={} " +
-                        "statusCode={} windowStart={} unauthorizedRequestCount={} threshold={}",
+                        "statusCode={} windowStart={} previousUnauthorizedRequestCount={} " +
+                        "currentUnauthorizedRequestCount={} threshold={}",
                 event.getEventId(),
                 event.getEndpoint(),
                 event.getStatusCode(),
                 window,
+                previousUnauthorizedRequests,
                 unauthorizedRequests,
                 UNAUTHORIZED_THRESHOLD
         );
@@ -350,7 +433,7 @@ public class DetectionEngine {
         );
 
         if (event.getStatusCode() == null ||
-                event.getStatusCode() != 500) {
+                event.getStatusCode() < 500) {
 
             return;
         }
@@ -366,19 +449,27 @@ public class DetectionEngine {
                                 window
                         );
 
-        long failures =
+        long previousFailures =
                 recentEvents.stream()
                         .filter(e ->
                                 e.getStatusCode() != null &&
-                                        e.getStatusCode() == 500)
+                                        e.getStatusCode() >= 500)
                         .count();
+
+        /*
+         * Include current service failure.
+         */
+        long failures =
+                previousFailures + 1;
 
         log.info(
                 "Service failure detection eventId={} serviceName={} " +
-                        "windowStart={} failureCount={} threshold={}",
+                        "windowStart={} previousFailureCount={} " +
+                        "currentFailureCount={} threshold={}",
                 event.getEventId(),
                 event.getServiceName(),
                 window,
+                previousFailures,
                 failures,
                 SERVICE_FAILURE_THRESHOLD
         );
@@ -392,7 +483,7 @@ public class DetectionEngine {
                             Severity.HIGH,
                             event,
                             (int) failures,
-                            "Repeated HTTP 500 errors detected."
+                            "Repeated HTTP 500+ errors detected."
                     )
             );
         }
@@ -404,6 +495,25 @@ public class DetectionEngine {
     // ABNORMAL REQUEST RATE
     // ============================================================
 
+    /**
+     * Detects excessive API request rates WITHOUT querying or
+     * storing normal HTTP requests in PostgreSQL.
+     *
+     * Every request is placed into a short-lived in-memory
+     * timestamp window.
+     *
+     * Example:
+     *
+     * 1   -> transient only
+     * 2   -> transient only
+     * ...
+     * 100 -> transient only
+     * 101 -> ALERT + current event is persisted
+     * 102 -> transient only
+     * 103 -> transient only
+     *
+     * This dramatically reduces SOC database and Neo4j growth.
+     */
     private void detectAbnormalRequestRate(
             SOCEvent event,
             List<DetectionResult> results
@@ -422,45 +532,130 @@ public class DetectionEngine {
             return;
         }
 
-        LocalDateTime window =
+        /*
+         * Only count actual HTTP/API requests.
+         */
+        if (!isHttpRequest(event)) {
+            return;
+        }
+
+        String sourceIp =
+                event.getSourceIp();
+
+        Instant now =
                 event.getTimestamp()
-                        .minusMinutes(ONE_MINUTE);
+                        .atZone(
+                                java.time.ZoneId.systemDefault()
+                        )
+                        .toInstant();
 
-        List<SOCEvent> recentEvents =
-                eventRepository
-                        .findBySourceIpAndTimestampAfter(
-                                event.getSourceIp(),
-                                window
-                        );
+        Deque<Instant> timestamps =
+                requestRateWindows.computeIfAbsent(
+                        sourceIp,
+                        key -> new ArrayDeque<>()
+                );
 
-        long requestCount =
-                recentEvents.stream()
-                        .filter(this::isHttpRequest)
-                        .count();
+        synchronized (timestamps) {
 
-        log.info(
-                "Request rate detection eventId={} sourceIp={} " +
-                        "windowStart={} requestCount={} threshold={}",
-                event.getEventId(),
-                event.getSourceIp(),
-                window,
-                requestCount,
-                REQUEST_RATE_THRESHOLD
-        );
+            Instant cutoff =
+                    now.minusSeconds(
+                            ONE_MINUTE * 60L
+                    );
 
-        if (requestCount >
-                REQUEST_RATE_THRESHOLD) {
+            /*
+             * Remove requests older than one minute.
+             */
+            while (!timestamps.isEmpty()
+                    && timestamps.peekFirst()
+                    .isBefore(cutoff)) {
 
-            results.add(
-                    new DetectionResult(
-                            DetectionRule.ABNORMAL_REQUEST_RATE,
-                            Severity.HIGH,
-                            event,
-                            (int) requestCount,
-                            "Abnormally high request rate detected. " +
-                                    "Possible DoS activity."
-                    )
+                timestamps.removeFirst();
+            }
+
+            int previousRequestCount =
+                    timestamps.size();
+
+            /*
+             * Add CURRENT request.
+             *
+             * It has not been persisted yet.
+             */
+            timestamps.addLast(now);
+
+            int requestCount =
+                    timestamps.size();
+
+            boolean alertAlreadyActive =
+                    requestRateAlertActive.getOrDefault(
+                            sourceIp,
+                            false
+                    );
+
+            log.info(
+                    "Request rate detection eventId={} sourceIp={} " +
+                            "previousRequestCount={} currentRequestCount={} threshold={} " +
+                            "alertAlreadyActive={}",
+                    event.getEventId(),
+                    sourceIp,
+                    previousRequestCount,
+                    requestCount,
+                    REQUEST_RATE_THRESHOLD,
+                    alertAlreadyActive
             );
+
+            /*
+             * Trigger ONLY when crossing the threshold.
+             *
+             * 100 -> no alert
+             * 101 -> alert
+             * 102 -> no duplicate alert
+             * 103 -> no duplicate alert
+             */
+            if (previousRequestCount <=
+                    REQUEST_RATE_THRESHOLD
+                    && requestCount >
+                    REQUEST_RATE_THRESHOLD
+                    && !alertAlreadyActive) {
+
+                requestRateAlertActive.put(
+                        sourceIp,
+                        true
+                );
+
+                results.add(
+                        new DetectionResult(
+                                DetectionRule.ABNORMAL_REQUEST_RATE,
+                                Severity.HIGH,
+                                event,
+                                requestCount,
+                                "Abnormally high request rate detected. " +
+                                        "Possible DoS activity."
+                        )
+                );
+
+                log.warn(
+                        "ABNORMAL REQUEST RATE DETECTED " +
+                                "eventId={} sourceIp={} requestCount={} threshold={}",
+                        event.getEventId(),
+                        sourceIp,
+                        requestCount,
+                        REQUEST_RATE_THRESHOLD
+                );
+
+                return;
+            }
+
+            /*
+             * If the rolling window has fallen back to <=100,
+             * allow another future burst to generate an alert.
+             */
+            if (requestCount <=
+                    REQUEST_RATE_THRESHOLD) {
+
+                requestRateAlertActive.remove(
+                        sourceIp
+                );
+            }
         }
     }
 
@@ -505,12 +700,22 @@ public class DetectionEngine {
     }
 
 
+    /**
+     * Determines whether the event represents an HTTP request.
+     *
+     * We intentionally do NOT check eventType here.
+     *
+     * 401 / 403 / 500+ requests are still real HTTP requests
+     * and should contribute to request-rate detection.
+     */
     private boolean isHttpRequest(
             SOCEvent event
     ) {
 
         return event.getHttpMethod() != null &&
-                event.getEndpoint() != null;
+                !event.getHttpMethod().isBlank() &&
+                event.getEndpoint() != null &&
+                !event.getEndpoint().isBlank();
     }
 
 

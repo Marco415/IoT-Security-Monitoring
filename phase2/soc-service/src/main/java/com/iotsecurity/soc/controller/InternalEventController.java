@@ -25,6 +25,7 @@ public class InternalEventController {
 
     private final String internalApiKey;
 
+
     public InternalEventController(
             EventNormalizationService normalizationService,
             AlertService alertService,
@@ -42,8 +43,10 @@ public class InternalEventController {
                 internalApiKey;
     }
 
+
     @PostMapping
     public ResponseEntity<SOCEvent> submitInternalEvent(
+
             @RequestHeader(
                     value = "X-Internal-SOC-Key",
                     required = false
@@ -66,6 +69,7 @@ public class InternalEventController {
                     .build();
         }
 
+
         log.info(
                 "Received internal SOC event " +
                         "serviceName={} eventType={} " +
@@ -79,25 +83,38 @@ public class InternalEventController {
                 request.correlationId()
         );
 
+
         SOCEvent event =
                 normalizationService.normalize(request);
 
-        SOCEvent savedEvent =
+
+        /*
+         * AlertService now performs the complete processing flow:
+         *
+         * 1. Run detection.
+         * 2. Decide whether the event should be persisted.
+         * 3. Persist only relevant events.
+         * 4. Synchronize persisted events with Neo4j.
+         * 5. Create triggered alerts.
+         */
+        SOCEvent processedEvent =
                 alertService.saveEvent(event);
+
 
         log.info(
                 "Internal SOC event processed " +
                         "eventId={} eventType={} statusCode={} " +
                         "endpoint={} correlationId={}",
-                savedEvent.getEventId(),
-                savedEvent.getEventType(),
-                savedEvent.getStatusCode(),
-                savedEvent.getEndpoint(),
-                savedEvent.getCorrelationId()
+                processedEvent.getEventId(),
+                processedEvent.getEventType(),
+                processedEvent.getStatusCode(),
+                processedEvent.getEndpoint(),
+                processedEvent.getCorrelationId()
         );
+
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(savedEvent);
+                .body(processedEvent);
     }
 }
