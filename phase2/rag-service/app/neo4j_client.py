@@ -1,5 +1,7 @@
 from neo4j import GraphDatabase
 from neo4j.graph import Node, Relationship, Path
+from datetime import date, datetime, time
+from enum import Enum
 
 from app.config import (
     NEO4J_URI,
@@ -54,52 +56,34 @@ class Neo4jClient:
         # -----------------------------------------------------
         # Neo4j Node
         # -----------------------------------------------------
-
         if isinstance(value, Node):
-
             return {
-                "id": self._get_business_id(
-                    value
-                ),
-                "labels": list(
-                    value.labels
-                ),
-                "properties": dict(
-                    value
-                ),
+                "id": self._get_business_id(value),
+                "labels": list(value.labels),
+                "properties": self._normalize_value(dict(value)),
             }
 
         # -----------------------------------------------------
         # Neo4j Relationship
         # -----------------------------------------------------
-
         if isinstance(value, Relationship):
-
             return {
-                "id": str(
-                    value.id
-                ),
+                "id": str(value.id),
                 "relationship": value.type,
-                "properties": dict(
-                    value
-                ),
+                "properties": self._normalize_value(dict(value)),
             }
 
         # -----------------------------------------------------
         # Neo4j Path
         # -----------------------------------------------------
-
         if isinstance(value, Path):
-
             return {
                 "nodes": [
                     self._normalize_value(node)
                     for node in value.nodes
                 ],
                 "relationships": [
-                    self._normalize_value(
-                        relationship
-                    )
+                    self._normalize_value(relationship)
                     for relationship in value.relationships
                 ],
             }
@@ -107,35 +91,50 @@ class Neo4jClient:
         # -----------------------------------------------------
         # Dictionary
         # -----------------------------------------------------
-
         if isinstance(value, dict):
-
             return {
-                key: self._normalize_value(
-                    item
-                )
+                str(key): self._normalize_value(item)
                 for key, item in value.items()
             }
 
         # -----------------------------------------------------
-        # List / Tuple
+        # List / Tuple / Set
         # -----------------------------------------------------
-
-        if isinstance(
-            value,
-            (list, tuple)
-        ):
-
+        if isinstance(value, (list, tuple, set)):
             return [
                 self._normalize_value(item)
                 for item in value
             ]
 
         # -----------------------------------------------------
-        # Primitive value
+        # Python date/time values
         # -----------------------------------------------------
+        if isinstance(value, (datetime, date, time)):
+            return value.isoformat()
 
-        return value
+        # -----------------------------------------------------
+        # Neo4j temporal values, including neo4j.time.DateTime
+        # -----------------------------------------------------
+        if value is not None and (
+            value.__class__.__module__.startswith("neo4j.time")
+        ):
+            if hasattr(value, "iso_format"):
+                return value.iso_format()
+
+            return str(value)
+
+        # -----------------------------------------------------
+        # Primitive values
+        # -----------------------------------------------------
+        if value is None or isinstance(
+            value, (str, int, float, bool)
+        ):
+            return value
+
+        # -----------------------------------------------------
+        # Fallback for unsupported values
+        # -----------------------------------------------------
+        return str(value)
 
     # =========================================================
     # BUSINESS ID
@@ -186,7 +185,6 @@ class Neo4jClient:
         query: str,
         parameters: dict | None = None
     ):
-
         with self.driver.session(
             database=NEO4J_DATABASE
         ) as session:
@@ -197,8 +195,6 @@ class Neo4jClient:
             )
 
             return [
-                self._normalize_value(
-                    record.data()
-                )
+                self._normalize_value(record.data())
                 for record in result
             ]

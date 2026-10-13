@@ -122,6 +122,49 @@ class GraphRetriever:
             }
         )
 
+        # =========================================================
+    # THREAT CONTROLS BY NAME
+    # =========================================================
+
+    def retrieve_threat_controls_by_name(
+        self,
+        threat_name: str
+    ):
+        """
+        Retrieve a threat and its associated security controls
+        using the threat name rather than an alert ID.
+        """
+
+        query = """
+        MATCH (threat:Threat)
+
+        WHERE
+            toLower(trim(threat.name)) =
+            toLower(trim($threat_name))
+
+        OPTIONAL MATCH
+            (control:Control)-[mitigates:MITIGATES]->
+            (threat)
+
+        RETURN
+            threat,
+
+            collect(DISTINCT control) AS controls,
+
+            collect(DISTINCT {
+                source: control.name,
+                relationship: type(mitigates),
+                target: threat.name
+            }) AS threat_control_relationships
+        """
+
+        return self.neo4j.run_query(
+            query,
+            {
+                "threat_name": threat_name
+            }
+        )
+
     # =========================================================
     # SERVICE DEPENDENCIES
     # =========================================================
@@ -130,24 +173,40 @@ class GraphRetriever:
         self,
         service_name: str
     ):
+        """
+        Find services that depend directly or indirectly on
+        the specified service.
+
+        Relationship direction:
+            Dependent service -[:DEPENDS_ON]-> Required service
+
+        If event-service fails, find services that depend on it.
+        """
 
         query = """
-        MATCH
-            (failed:Service {name: $service_name})
+        MATCH (failed:Service)
+
+        WHERE toLower(failed.name) =
+              toLower($service_name)
 
         OPTIONAL MATCH path =
-            (affected:Service)
-            -[:DEPENDS_ON*1..5]->
-            (failed)
+            (affected:Service)-[:DEPENDS_ON*1..5]->(failed)
+
+        WITH
+            failed,
+            collect(DISTINCT affected) AS affected_services,
+            collect(DISTINCT path) AS paths
 
         RETURN
             failed,
 
-            collect(DISTINCT affected)
-                AS affected_services,
+            affected_services,
 
-            [p IN collect(path) |
-                [r IN relationships(p) |
+            [
+                p IN paths
+                WHERE p IS NOT NULL |
+                [
+                    r IN relationships(p) |
                     {
                         source: startNode(r).name,
                         relationship: type(r),

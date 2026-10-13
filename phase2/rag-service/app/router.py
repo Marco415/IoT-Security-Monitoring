@@ -225,7 +225,7 @@ def detect_intent(
     # EVENTS
     # ========================================================
 
-    if "event-" in q:
+    if extract_event_id(question):
 
         if contains_any(
             q,
@@ -503,17 +503,21 @@ def extract_alert_id(
     return None
 
 
-def extract_event_id(
-    question: str
-):
+def extract_event_id(question: str):
+    """Extract a UUID-formatted event ID from a question."""
 
-    match = re.search(
-        r"\bevent-\d+\b",
-        question.lower()
+    pattern = (
+        r"\b[0-9a-fA-F]{8}-"
+        r"[0-9a-fA-F]{4}-"
+        r"[0-9a-fA-F]{4}-"
+        r"[0-9a-fA-F]{4}-"
+        r"[0-9a-fA-F]{12}\b"
     )
 
+    match = re.search(pattern, question)
+
     if match:
-        return match.group(0)
+        return match.group(0).lower()
 
     return None
 
@@ -597,15 +601,41 @@ def extract_device_id(
     return None
 
 
-def extract_threat_name(
-    question: str
-):
+def extract_threat_name(question: str):
+    """
+    Extract a known threat name while allowing hyphens,
+    underscores and repeated whitespace as separators.
+    """
 
-    q = question.lower()
+    q = question.lower().strip()
+
+    normalized_question = re.sub(
+        r"[-_]+",
+        " ",
+        q
+    )
+
+    normalized_question = re.sub(
+        r"\s+",
+        " ",
+        normalized_question
+    )
 
     for threat in KNOWN_THREATS:
 
-        if threat in q:
+        normalized_threat = re.sub(
+            r"[-_]+",
+            " ",
+            threat.lower()
+        )
+
+        normalized_threat = re.sub(
+            r"\s+",
+            " ",
+            normalized_threat
+        )
+
+        if normalized_threat in normalized_question:
             return threat
 
     return None
