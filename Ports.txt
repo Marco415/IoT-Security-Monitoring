@@ -1,0 +1,21 @@
+Eureka Server:	8761
+API Gateway:	8090
+Device Service:	8081
+Event Service:	8082
+Auth Service:	8083
+SOC Service:	8084
+RAG Service:	8092
+
+PostgreSQL:	5432
+device_db:	5433
+event_db:	5434
+auth_db:	5435
+soc_db:		5436
+
+Elasticsearch:	9200
+Logstash:	5000
+Kibana:		5601
+
+Neo4j browser:	7474
+Neo4j Bolt:	7687
+Ollama:		11434

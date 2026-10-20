@@ -1,0 +1,37 @@
+=============================================
+1. Start Docker
+docker compose up -d
+docker compose ps
+
+=============================================
+2. Check Eureka dashboard
+http://localhost:8761
+
+=============================================
+3. Check gateway
+http://localhost:8090/actuator/health
+
+=============================================
+4. Kibana UI
+http://localhost:5601
+
+=============================================
+5. Swagger UI
+http://localhost:8090/swagger-ui.html
+
+=============================================
+6. Neo4j
+http://localhost:7474/browser/
+
+=============================================
+7. SOC dashboard
+http://localhost:8084
+
+=============================================
+8. Start client app
+In VS Code, open index.html
+Right click, Open with Live Server
+
+=============================================
+9. Stop Docker
+docker compose down
